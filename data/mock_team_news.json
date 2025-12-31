@@ -1,0 +1,28 @@
+{
+  "home": {
+    "absences": [
+      {
+        "player_name": "Elliot Marlow",
+        "position": "RB",
+        "reason": "injury",
+        "estimated_xg_impact": -0.05
+      },
+      {
+        "player_name": "Santiago Kerr",
+        "position": "ST",
+        "reason": "rotation",
+        "estimated_xg_impact": -0.12
+      }
+    ]
+  },
+  "away": {
+    "absences": [
+      {
+        "player_name": "Noah Vance",
+        "position": "DM",
+        "reason": "suspension",
+        "estimated_xg_impact": -0.07
+      }
+    ]
+  }
+}
