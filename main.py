@@ -24,6 +24,34 @@ def _render_report_markdown(report: MarketAnalysisReport) -> str:
     lines.append("## Match")
     lines.append(report.match_summary)
     lines.append("")
+    lines.append("## Most likely outcomes (descriptive)")
+    lines.append(
+        f"Market favorite: {report.market_favorite.label} ({report.market_favorite.outcome}) — "
+        f"{report.market_favorite.probability:.3f}"
+    )
+    lines.append(
+        f"Model favorite: {report.model_favorite.label} ({report.model_favorite.outcome}) — "
+        f"{report.model_favorite.probability:.3f}"
+    )
+    lines.append("")
+    lines.append("## Most likely winner (team only; descriptive)")
+    if report.market_favorite.outcome == "draw":
+        lines.append(
+            f"Market: Draw is the most likely outcome ({report.market_favorite.probability:.3f}); no single team favored."
+        )
+    else:
+        lines.append(
+            f"Market: {report.market_favorite.label} is the most likely winner ({report.market_favorite.probability:.3f})."
+        )
+    if report.model_favorite.outcome == "draw":
+        lines.append(
+            f"Model: Draw is the most likely outcome ({report.model_favorite.probability:.3f}); no single team favored."
+        )
+    else:
+        lines.append(
+            f"Model: {report.model_favorite.label} is the most likely winner ({report.model_favorite.probability:.3f})."
+        )
+    lines.append("")
     lines.append("## Key team news")
     lines.append(report.key_team_news)
     lines.append("")

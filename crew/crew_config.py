@@ -138,9 +138,11 @@ class WriteReportTool(_BasePipelineTool):
     description: str = "Write a neutral market intelligence memo (no recommendations) as a strict schema object."
 
     def _run(self) -> str:
+        implied = self._require(self.ctx.implied, "implied")
+        adjusted = self._require(self.ctx.adjusted_probabilities, "adjusted_probabilities")
         team_news = self._require(self.ctx.validated_team_news, "validated_team_news")
         discrepancies = self._require(self.ctx.discrepancies, "discrepancies")
-        report = ReportWriterAgent.write(self.ctx.match, team_news, discrepancies)
+        report = ReportWriterAgent.write(self.ctx.match, implied, adjusted, team_news, discrepancies)
         self.ctx.report = report
         print("\n[8] Market Analysis Report (schema) — NO RECOMMENDATIONS")
         print(report.model_dump_json(indent=2))
