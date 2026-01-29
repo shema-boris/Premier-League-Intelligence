@@ -43,6 +43,7 @@ class PipelineContext:
     match: Match
     raw_odds: RawOdds
     team_news: MatchTeamNews
+    verbose: bool = True
     implied: ImpliedProbabilities | None = None
     validated_team_news: MatchTeamNews | None = None
     xg_adjustment: ExpectedGoalsAdjustment | None = None
@@ -67,12 +68,13 @@ class EmitInputsTool(_BasePipelineTool):
     description: str = "Emit the validated mock inputs (match, raw odds, and team news) without modification."
 
     def _run(self) -> str:
-        print("\n[0] Match")
-        print(self.ctx.match.model_dump_json(indent=2))
-        print("\n[1] Raw Odds")
-        print(self.ctx.raw_odds.model_dump_json(indent=2))
-        print("\n[2] Team News (raw)")
-        print(self.ctx.team_news.model_dump_json(indent=2))
+        if self.ctx.verbose:
+            print("\n[0] Match")
+            print(self.ctx.match.model_dump_json(indent=2))
+            print("\n[1] Raw Odds")
+            print(self.ctx.raw_odds.model_dump_json(indent=2))
+            print("\n[2] Team News (raw)")
+            print(self.ctx.team_news.model_dump_json(indent=2))
         return self.ctx.match.model_dump_json()
 
 
@@ -83,8 +85,9 @@ class ComputeImpliedProbabilitiesTool(_BasePipelineTool):
     def _run(self) -> str:
         implied = OddsAgent.implied_probabilities(self.ctx.raw_odds)
         self.ctx.implied = implied
-        print("\n[3] Market Implied Probabilities (normalized; overround reported separately)")
-        print(implied.model_dump_json(indent=2))
+        if self.ctx.verbose:
+            print("\n[3] Market Implied Probabilities (normalized; overround reported separately)")
+            print(implied.model_dump_json(indent=2))
         return implied.model_dump_json()
 
 
@@ -95,8 +98,9 @@ class ValidateTeamNewsTool(_BasePipelineTool):
     def _run(self) -> str:
         validated = TeamNewsAgent.validate(self.ctx.team_news)
         self.ctx.validated_team_news = validated
-        print("\n[4] Team News (validated)")
-        print(validated.model_dump_json(indent=2))
+        if self.ctx.verbose:
+            print("\n[4] Team News (validated)")
+            print(validated.model_dump_json(indent=2))
         return validated.model_dump_json()
 
 
@@ -111,10 +115,11 @@ class ModelImpactTool(_BasePipelineTool):
         self.ctx.xg_adjustment = xg_adj
         self.ctx.adjusted_probabilities = adjusted
         output = ImpactModelOutput(xg_adjustment=xg_adj, adjusted_probabilities=adjusted)
-        print("\n[5] Expected Goals Adjustment")
-        print(xg_adj.model_dump_json(indent=2))
-        print("\n[6] Adjusted Probabilities (team-news interpretability layer)")
-        print(adjusted.model_dump_json(indent=2))
+        if self.ctx.verbose:
+            print("\n[5] Expected Goals Adjustment")
+            print(xg_adj.model_dump_json(indent=2))
+            print("\n[6] Adjusted Probabilities (team-news interpretability layer)")
+            print(adjusted.model_dump_json(indent=2))
         return output.model_dump_json()
 
 
@@ -128,8 +133,9 @@ class AnalyzeDiscrepanciesTool(_BasePipelineTool):
         discrepancies = DiscrepancyAnalysisAgent.analyze(implied, adjusted)
         self.ctx.discrepancies = discrepancies
         output = DiscrepancyOutput(discrepancies=discrepancies)
-        print("\n[7] Market Discrepancies (sorted by absolute delta)")
-        print(output.model_dump_json(indent=2))
+        if self.ctx.verbose:
+            print("\n[7] Market Discrepancies (sorted by absolute delta)")
+            print(output.model_dump_json(indent=2))
         return output.model_dump_json()
 
 
@@ -144,8 +150,9 @@ class WriteReportTool(_BasePipelineTool):
         discrepancies = self._require(self.ctx.discrepancies, "discrepancies")
         report = ReportWriterAgent.write(self.ctx.match, implied, adjusted, team_news, discrepancies)
         self.ctx.report = report
-        print("\n[8] Market Analysis Report (schema) — NO RECOMMENDATIONS")
-        print(report.model_dump_json(indent=2))
+        if self.ctx.verbose:
+            print("\n[8] Market Analysis Report (schema) — NO RECOMMENDATIONS")
+            print(report.model_dump_json(indent=2))
         return report.model_dump_json()
 
 
@@ -285,8 +292,10 @@ def build_premier_league_crew(
     )
 
 
-def run_offline_pipeline(*, match: Match, raw_odds: RawOdds, team_news: MatchTeamNews) -> MarketAnalysisReport:
-    ctx = PipelineContext(match=match, raw_odds=raw_odds, team_news=team_news)
+def run_offline_pipeline(
+    *, match: Match, raw_odds: RawOdds, team_news: MatchTeamNews, verbose: bool = True
+) -> MarketAnalysisReport:
+    ctx = PipelineContext(match=match, raw_odds=raw_odds, team_news=team_news, verbose=verbose)
 
     EmitInputsTool(ctx=ctx)._run()
     ComputeImpliedProbabilitiesTool(ctx=ctx)._run()
