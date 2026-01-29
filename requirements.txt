@@ -1,3 +1,5 @@
 # Requires Python >=3.10
 crewai[google-genai]
 pydantic>=2.0
+python-dotenv
+requests>=2.28.0
