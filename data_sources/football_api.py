@@ -84,6 +84,29 @@ class FootballAPIClient:
         })
         return data.get("response", [])
 
+    def get_completed_fixtures(self, last_n: int = 50) -> list[dict[str, Any]]:
+        """Get recently completed Premier League fixtures with results.
+        
+        Uses date range query (free-tier compatible).
+        """
+        from datetime import timedelta
+
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        past = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
+
+        data = self._get("fixtures", params={
+            "league": PREMIER_LEAGUE_ID,
+            "season": CURRENT_SEASON,
+            "from": past,
+            "to": today,
+            "status": "FT",  # Full Time (completed)
+        })
+
+        fixtures = data.get("response", [])
+        # Sort by date descending (most recent first)
+        fixtures.sort(key=lambda f: f.get("fixture", {}).get("date", ""), reverse=True)
+        return fixtures[:last_n]
+
     def get_current_round(self) -> str | None:
         """Get the current round/matchweek name."""
         data = self._get("fixtures/rounds", params={

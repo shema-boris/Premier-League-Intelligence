@@ -11,6 +11,7 @@ from schemas.match import Match
 from schemas.odds import RawOdds
 from schemas.report import MarketAnalysisReport
 from schemas.team_news import MatchTeamNews, TeamNews
+from validation.database import PredictionDB
 
 
 def _load_json(path: Path) -> dict:
@@ -199,15 +200,47 @@ def _render_multi_match_summary(reports: list[MarketAnalysisReport]) -> str:
     return "\n".join(lines)
 
 
+def _save_prediction(db: PredictionDB, match: Match, raw_odds: RawOdds, report: MarketAnalysisReport) -> None:
+    """Save prediction to database for future validation."""
+    db.save_prediction(
+        home_team=match.home_team,
+        away_team=match.away_team,
+        match_date=match.kickoff_utc.isoformat(),
+        market_favorite=report.market_favorite.label,
+        market_favorite_prob=report.market_favorite.probability,
+        model_favorite=report.model_favorite.label,
+        model_favorite_prob=report.model_favorite.probability,
+        home_prob=report.discrepancies[0].model_probability if report.discrepancies else 0,
+        draw_prob=report.discrepancies[1].model_probability if len(report.discrepancies) > 1 else 0,
+        away_prob=report.discrepancies[2].model_probability if len(report.discrepancies) > 2 else 0,
+        home_odds=raw_odds.home_win,
+        draw_odds=raw_odds.draw,
+        away_odds=raw_odds.away_win,
+    )
+
+
 def main() -> None:
     load_dotenv()
 
     live_mode = os.getenv("LIVE_DATA", "").strip() in {"1", "true", "TRUE", "yes", "YES"}
     multi_mode = os.getenv("MULTI_MATCH", "").strip() in {"1", "true", "TRUE", "yes", "YES"}
     offline_mode = os.getenv("OFFLINE_MODE", "").strip() in {"1", "true", "TRUE", "yes", "YES"}
+    validate_mode = os.getenv("VALIDATE", "").strip() in {"1", "true", "TRUE", "yes", "YES"}
 
     base_dir = Path(__file__).resolve().parent
     data_dir = base_dir / "data"
+    db = PredictionDB()
+
+    # Validation mode: check predictions against results
+    if validate_mode:
+        from validation.backtest import BacktestRunner
+        print("PHASE 4.3 — VALIDATION mode")
+        print("=" * 60)
+        runner = BacktestRunner(db)
+        results = runner.validate_pending()
+        print(f"Updated: {results['updated']} | Still pending: {results['still_pending']}")
+        runner.print_report()
+        return
 
     # Multi-match mode: analyze all upcoming matches
     if multi_mode and live_mode:
@@ -229,6 +262,7 @@ def main() -> None:
                 match=match, raw_odds=raw_odds, team_news=team_news, verbose=False
             )
             reports.append(report)
+            _save_prediction(db, match, raw_odds, report)
 
         print("\n" + "=" * 60)
         print("\nMATCHWEEK SUMMARY")
@@ -256,6 +290,10 @@ def main() -> None:
     print("=" * 50)
 
     report = run_offline_pipeline(match=match, raw_odds=raw_odds, team_news=team_news)
+    
+    if live_mode:
+        _save_prediction(db, match, raw_odds, report)
+        print("\n[Prediction saved to database]")
 
     markdown = _render_report_markdown(report)
     print("\n\nFINAL REPORT (Markdown)")
