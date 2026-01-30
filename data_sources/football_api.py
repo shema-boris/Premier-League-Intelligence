@@ -269,3 +269,97 @@ class FootballAPIClient:
             })
 
         return result
+
+    def get_team_last_n_fixtures(self, team_id: int, n: int = 5) -> list[dict[str, Any]]:
+        """Get last N completed fixtures for a team.
+        
+        Returns fixtures sorted by date (most recent first).
+        """
+        from datetime import timedelta
+
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        past = (datetime.now(timezone.utc) - timedelta(days=90)).strftime("%Y-%m-%d")
+
+        data = self._get("fixtures", params={
+            "team": team_id,
+            "season": CURRENT_SEASON,
+            "from": past,
+            "to": today,
+            "status": "FT",
+        })
+
+        fixtures = data.get("response", [])
+        fixtures.sort(key=lambda f: f.get("fixture", {}).get("date", ""), reverse=True)
+        return fixtures[:n]
+
+    def get_head_to_head(self, team1_id: int, team2_id: int, last_n: int = 5) -> list[dict[str, Any]]:
+        """Get last N head-to-head matches between two teams.
+        
+        Returns fixtures sorted by date (most recent first).
+        """
+        data = self._get("fixtures/headtohead", params={
+            "h2h": f"{team1_id}-{team2_id}",
+            "last": last_n,
+        })
+
+        fixtures = data.get("response", [])
+        fixtures.sort(key=lambda f: f.get("fixture", {}).get("date", ""), reverse=True)
+        return fixtures
+
+    def get_team_id_by_name(self, team_name: str) -> int | None:
+        """Get team ID by searching team name.
+        
+        Returns first matching team ID or None.
+        """
+        data = self._get("teams", params={
+            "league": PREMIER_LEAGUE_ID,
+            "season": CURRENT_SEASON,
+            "search": team_name,
+        })
+
+        teams = data.get("response", [])
+        if teams:
+            return teams[0].get("team", {}).get("id")
+        return None
+
+    def get_predicted_lineup(self, team_id: int) -> dict[str, Any]:
+        """Get predicted lineup based on recent matches.
+        
+        Returns dict with formation and players by position.
+        """
+        # Get last 3 matches to find common lineup
+        recent_fixtures = self.get_team_last_n_fixtures(team_id, n=3)
+        
+        if not recent_fixtures:
+            return {"formation": "4-3-3", "players": []}
+        
+        # Get lineup from most recent match
+        latest = recent_fixtures[0]
+        fixture_id = latest.get("fixture", {}).get("id")
+        
+        if not fixture_id:
+            return {"formation": "4-3-3", "players": []}
+        
+        # Fetch lineups for the fixture
+        data = self._get("fixtures/lineups", params={"fixture": fixture_id})
+        lineups = data.get("response", [])
+        
+        # Find the lineup for our team
+        team_lineup = None
+        for lineup in lineups:
+            if lineup.get("team", {}).get("id") == team_id:
+                team_lineup = lineup
+                break
+        
+        if not team_lineup:
+            return {"formation": "4-3-3", "players": []}
+        
+        formation = team_lineup.get("formation", "4-3-3")
+        start_xi = team_lineup.get("startXI", [])
+        substitutes = team_lineup.get("substitutes", [])
+        
+        return {
+            "formation": formation,
+            "start_xi": start_xi,
+            "substitutes": substitutes,
+        }

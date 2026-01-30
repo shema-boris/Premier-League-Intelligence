@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TopBar, MatchweekTable, DeepDivePanel, BottomNav } from './components';
+import { TopBar, MatchweekTable, DeepDivePanel } from './components';
 import { api } from './api/client';
 import type { AnalysisResponse } from './types';
 
@@ -12,7 +12,6 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'kickoff' | 'discrepancy'>('kickoff');
   const [filterBiggest, setFilterBiggest] = useState(false);
-  const [activeTab, setActiveTab] = useState('report');
 
   useEffect(() => {
     loadMatches();
@@ -90,8 +89,6 @@ function App() {
             </>
           )}
         </main>
-
-        <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
     </div>
   );

@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from crew.crew_config import run_offline_pipeline
 from data_sources import OddsAPIClient
+from data_sources.football_api import FootballAPIClient
 from dotenv import load_dotenv
 from schemas.match import Match
 from schemas.odds import RawOdds
@@ -94,6 +95,59 @@ class HealthResponse(BaseModel):
     predictions_count: int
 
 
+class TeamFormResponse(BaseModel):
+    """Team's last 5 matches form."""
+    model_config = ConfigDict(extra="forbid")
+    
+    team_name: str
+    matches: list[dict[str, Any]]  # List of recent match results
+    form_string: str  # e.g., "W-W-D-L-W"
+    goals_scored: int
+    goals_conceded: int
+    wins: int
+    draws: int
+    losses: int
+
+
+class LineupResponse(BaseModel):
+    """Predicted lineup for a team."""
+    model_config = ConfigDict(extra="forbid")
+    
+    team_name: str
+    formation: str
+    start_xi: list[dict[str, Any]]
+    substitutes: list[dict[str, Any]]
+
+
+class HeadToHeadResponse(BaseModel):
+    """Head-to-head stats between two teams."""
+    model_config = ConfigDict(extra="forbid")
+    
+    team1: str
+    team2: str
+    matches: list[dict[str, Any]]  # Last N H2H matches
+    team1_wins: int
+    team2_wins: int
+    draws: int
+
+
+class EnhancedAnalysisResponse(BaseModel):
+    """Analysis with matchweek and date info."""
+    model_config = ConfigDict(extra="forbid")
+    
+    home_team: str
+    away_team: str
+    kickoff_utc: str
+    kickoff_date: str  # e.g., "2024-02-03"
+    matchweek: str | None  # e.g., "Regular Season - 23"
+    market_favorite: str
+    market_favorite_prob: float
+    model_favorite: str
+    model_favorite_prob: float
+    discrepancies: list[dict[str, Any]]
+    conclusion: str
+
+
 # --- App Setup ---
 
 @asynccontextmanager
@@ -115,6 +169,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origin_regex=r"http://(localhost|127\\.0\\.0\\.1)(:\\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -374,6 +429,194 @@ async def run_validation():
         "still_pending": results["still_pending"],
         "metrics": db.get_metrics().__dict__,
     }
+
+
+@app.get("/team-form/{team_name}", response_model=TeamFormResponse)
+async def get_team_form(team_name: str):
+    """Get last 5 matches for a team."""
+    try:
+        football_client = FootballAPIClient.from_env()
+        
+        # Get team ID
+        team_id = football_client.get_team_id_by_name(team_name)
+        if not team_id:
+            raise HTTPException(status_code=404, detail=f"Team not found: {team_name}")
+        
+        # Get last 5 fixtures
+        fixtures = football_client.get_team_last_n_fixtures(team_id, n=5)
+        
+        if not fixtures:
+            return TeamFormResponse(
+                team_name=team_name,
+                matches=[],
+                form_string="",
+                goals_scored=0,
+                goals_conceded=0,
+                wins=0,
+                draws=0,
+                losses=0,
+            )
+        
+        # Process fixtures
+        matches = []
+        form_chars = []
+        total_scored = 0
+        total_conceded = 0
+        wins = 0
+        draws = 0
+        losses = 0
+        
+        for fixture in fixtures:
+            teams = fixture.get("teams", {})
+            goals = fixture.get("goals", {})
+            home_goals = goals.get("home", 0)
+            away_goals = goals.get("away", 0)
+            
+            # Determine if team was home or away
+            is_home = teams.get("home", {}).get("id") == team_id
+            team_goals = home_goals if is_home else away_goals
+            opponent_goals = away_goals if is_home else home_goals
+            opponent_name = teams.get("away" if is_home else "home", {}).get("name", "Unknown")
+            
+            total_scored += team_goals
+            total_conceded += opponent_goals
+            
+            # Determine result
+            if team_goals > opponent_goals:
+                result = "W"
+                wins += 1
+            elif team_goals < opponent_goals:
+                result = "L"
+                losses += 1
+            else:
+                result = "D"
+                draws += 1
+            
+            form_chars.append(result)
+            
+            matches.append({
+                "opponent": opponent_name,
+                "result": result,
+                "score": f"{team_goals}-{opponent_goals}",
+                "home": is_home,
+                "date": fixture.get("fixture", {}).get("date", ""),
+            })
+        
+        return TeamFormResponse(
+            team_name=team_name,
+            matches=matches,
+            form_string="-".join(form_chars),
+            goals_scored=total_scored,
+            goals_conceded=total_conceded,
+            wins=wins,
+            draws=draws,
+            losses=losses,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Failed to fetch team form: {e}")
+
+
+@app.get("/lineup/{team_name}", response_model=LineupResponse)
+async def get_predicted_lineup(team_name: str):
+    """Get predicted lineup for a team based on recent matches."""
+    try:
+        football_client = FootballAPIClient.from_env()
+        
+        # Get team ID
+        team_id = football_client.get_team_id_by_name(team_name)
+        if not team_id:
+            raise HTTPException(status_code=404, detail=f"Team not found: {team_name}")
+        
+        # Get predicted lineup
+        lineup_data = football_client.get_predicted_lineup(team_id)
+        
+        return LineupResponse(
+            team_name=team_name,
+            formation=lineup_data.get("formation", "4-3-3"),
+            start_xi=lineup_data.get("start_xi", []),
+            substitutes=lineup_data.get("substitutes", []),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Failed to fetch lineup: {e}")
+
+
+@app.get("/head-to-head/{team1}/{team2}", response_model=HeadToHeadResponse)
+async def get_head_to_head(team1: str, team2: str):
+    """Get head-to-head stats between two teams."""
+    try:
+        football_client = FootballAPIClient.from_env()
+        
+        # Get team IDs
+        team1_id = football_client.get_team_id_by_name(team1)
+        team2_id = football_client.get_team_id_by_name(team2)
+        
+        if not team1_id or not team2_id:
+            raise HTTPException(status_code=404, detail="One or both teams not found")
+        
+        # Get H2H fixtures
+        fixtures = football_client.get_head_to_head(team1_id, team2_id, last_n=5)
+        
+        if not fixtures:
+            return HeadToHeadResponse(
+                team1=team1,
+                team2=team2,
+                matches=[],
+                team1_wins=0,
+                team2_wins=0,
+                draws=0,
+            )
+        
+        # Process fixtures
+        matches = []
+        team1_wins = 0
+        team2_wins = 0
+        draws = 0
+        
+        for fixture in fixtures:
+            teams = fixture.get("teams", {})
+            goals = fixture.get("goals", {})
+            home_goals = goals.get("home", 0)
+            away_goals = goals.get("away", 0)
+            
+            home_team_id = teams.get("home", {}).get("id")
+            home_team_name = teams.get("home", {}).get("name", "")
+            away_team_name = teams.get("away", {}).get("name", "")
+            
+            # Determine winner
+            if home_goals > away_goals:
+                winner = home_team_name
+                if home_team_id == team1_id:
+                    team1_wins += 1
+                else:
+                    team2_wins += 1
+            elif away_goals > home_goals:
+                winner = away_team_name
+                if home_team_id == team1_id:
+                    team2_wins += 1
+                else:
+                    team1_wins += 1
+            else:
+                winner = "Draw"
+                draws += 1
+            
+            matches.append({
+                "home_team": home_team_name,
+                "away_team": away_team_name,
+                "score": f"{home_goals}-{away_goals}",
+                "winner": winner,
+                "date": fixture.get("fixture", {}).get("date", ""),
+            })
+        
+        return HeadToHeadResponse(
+            team1=team1,
+            team2=team2,
+            matches=matches,
+            team1_wins=team1_wins,
+            team2_wins=team2_wins,
+            draws=draws,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Failed to fetch head-to-head: {e}")
 
 
 if __name__ == "__main__":

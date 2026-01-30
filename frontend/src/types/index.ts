@@ -61,3 +61,55 @@ export interface HealthResponse {
   timestamp: string;
   predictions_count: number;
 }
+
+export interface TeamFormMatch {
+  opponent: string;
+  result: string;
+  score: string;
+  home: boolean;
+  date: string;
+}
+
+export interface TeamFormResponse {
+  team_name: string;
+  matches: TeamFormMatch[];
+  form_string: string;
+  goals_scored: number;
+  goals_conceded: number;
+  wins: number;
+  draws: number;
+  losses: number;
+}
+
+export interface LineupPlayer {
+  player: {
+    id: number;
+    name: string;
+    number: number;
+    pos: string;
+  };
+}
+
+export interface LineupResponse {
+  team_name: string;
+  formation: string;
+  start_xi: LineupPlayer[];
+  substitutes: LineupPlayer[];
+}
+
+export interface HeadToHeadMatch {
+  home_team: string;
+  away_team: string;
+  score: string;
+  winner: string;
+  date: string;
+}
+
+export interface HeadToHeadResponse {
+  team1: string;
+  team2: string;
+  matches: HeadToHeadMatch[];
+  team1_wins: number;
+  team2_wins: number;
+  draws: number;
+}

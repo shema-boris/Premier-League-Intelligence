@@ -3,9 +3,12 @@ import type {
   HealthResponse,
   MetricsResponse,
   PredictionResponse,
+  TeamFormResponse,
+  LineupResponse,
+  HeadToHeadResponse,
 } from '../types';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = 'http://127.0.0.1:8000';
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, options);
@@ -42,5 +45,16 @@ export const api = {
     fetchJson<{ updated: number; still_pending: number; metrics: MetricsResponse }>(
       `${API_BASE}/validate`,
       { method: 'POST' }
+    ),
+
+  getTeamForm: (teamName: string) =>
+    fetchJson<TeamFormResponse>(`${API_BASE}/team-form/${encodeURIComponent(teamName)}`),
+
+  getLineup: (teamName: string) =>
+    fetchJson<LineupResponse>(`${API_BASE}/lineup/${encodeURIComponent(teamName)}`),
+
+  getHeadToHead: (team1: string, team2: string) =>
+    fetchJson<HeadToHeadResponse>(
+      `${API_BASE}/head-to-head/${encodeURIComponent(team1)}/${encodeURIComponent(team2)}`
     ),
 };
