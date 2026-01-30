@@ -1,5 +1,6 @@
 import React from 'react';
 import type { AnalysisResponse } from '../types';
+import { groupMatchesByDate, getRelativeDateLabel } from '../utils/dateUtils';
 
 interface MatchweekTableProps {
   matches: AnalysisResponse[];
@@ -74,71 +75,78 @@ export const MatchweekTable: React.FC<MatchweekTableProps> = ({
     displayMatches = displayMatches.slice(0, 5);
   }
 
+  // Group matches by date
+  const groupedMatches = groupMatchesByDate(displayMatches);
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-3 border-b border-pl-border">
         <h2 className="text-lg font-semibold text-white flex items-center gap-2">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-          MATCHWEEK OVERVIEW
+          UPCOMING MATCHES
         </h2>
+        <span className="text-xs text-pl-text-dim">
+          {matches.length} {matches.length === 1 ? 'match' : 'matches'}
+        </span>
       </div>
 
       <div className="flex-1 overflow-auto">
-        <table className="w-full">
-          <thead className="sticky top-0 bg-pl-card">
-            <tr className="text-left text-xs text-pl-text-dim uppercase tracking-wider">
-              <th className="px-4 py-3 font-medium">Match</th>
-              <th className="px-4 py-3 font-medium">KO</th>
-              <th className="px-4 py-3 font-medium">Market Fav</th>
-              <th className="px-4 py-3 font-medium">Δ Discrepancy</th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayMatches.map((match, idx) => {
-              const isSelected = selectedMatch?.home_team === match.home_team && 
-                                 selectedMatch?.away_team === match.away_team;
-              const maxDelta = getMaxDiscrepancy(match);
-              const favAbbrev = getTeamAbbrev(match.market_favorite);
+        {groupedMatches.map((group, groupIdx) => (
+          <div key={group.date}>
+            {/* Date Header */}
+            <div className="sticky top-0 bg-pl-dark/95 backdrop-blur-sm px-4 py-2 border-b border-pl-border z-10">
+              <h3 className="text-sm font-bold text-pl-accent">
+                {getRelativeDateLabel(group.matches[0].kickoff_utc)}
+              </h3>
+            </div>
 
-              return (
-                <tr
-                  key={`${match.home_team}-${match.away_team}-${idx}`}
-                  onClick={() => onSelectMatch(match)}
-                  className={`
-                    cursor-pointer border-b border-pl-border transition-colors
-                    ${isSelected ? 'bg-pl-border/50' : 'hover:bg-pl-border/30'}
-                  `}
-                >
-                  <td className="px-4 py-3">
-                    <span className="text-white font-medium">
-                      {getTeamAbbrev(match.home_team)}
-                    </span>
-                    <span className="text-pl-text-dim mx-1">vs</span>
-                    <span className="text-white font-medium">
-                      {getTeamAbbrev(match.away_team)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-pl-text-dim">
-                    {formatTime(match.kickoff_utc)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-white">{favAbbrev}</span>
-                    <span className="text-pl-text-dim ml-1">
-                      ({(match.market_favorite_prob * 100).toFixed(0)}%)
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`font-medium ${maxDelta > 0.05 ? 'text-pl-accent' : 'text-pl-accent-orange'}`}>
-                      {maxDelta > 0 ? '+' : ''}{(maxDelta * 100).toFixed(1)}%
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+            {/* Matches for this date */}
+            <div className="divide-y divide-pl-border">
+              {group.matches.map((match, idx) => {
+                const isSelected = selectedMatch?.home_team === match.home_team && 
+                                   selectedMatch?.away_team === match.away_team;
+                const maxDelta = getMaxDiscrepancy(match);
+                const favAbbrev = getTeamAbbrev(match.market_favorite);
+
+                return (
+                  <div
+                    key={`${match.home_team}-${match.away_team}-${idx}`}
+                    onClick={() => onSelectMatch(match)}
+                    className={`
+                      cursor-pointer transition-colors px-4 py-3
+                      ${isSelected ? 'bg-pl-border/50' : 'hover:bg-pl-border/30'}
+                    `}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-pl-text-dim font-medium">
+                          {formatTime(match.kickoff_utc)}
+                        </span>
+                        <span className="text-sm text-white font-medium">
+                          {getTeamAbbrev(match.home_team)}
+                        </span>
+                        <span className="text-xs text-pl-text-dim">vs</span>
+                        <span className="text-sm text-white font-medium">
+                          {getTeamAbbrev(match.away_team)}
+                        </span>
+                      </div>
+                      <span className={`text-xs font-medium ${maxDelta > 0.05 ? 'text-pl-accent' : 'text-pl-accent-orange'}`}>
+                        Δ {maxDelta > 0 ? '+' : ''}{(maxDelta * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-pl-text-dim">
+                      <span>Market: {favAbbrev} ({(match.market_favorite_prob * 100).toFixed(0)}%)</span>
+                      <span>•</span>
+                      <span>Model: {getTeamAbbrev(match.model_favorite)} ({(match.model_favorite_prob * 100).toFixed(0)}%)</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Progress bar placeholder */}
