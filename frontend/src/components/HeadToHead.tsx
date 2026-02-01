@@ -92,32 +92,42 @@ export const HeadToHead: React.FC<HeadToHeadProps> = ({ team1, team2 }) => {
 
       {/* Recent Matches */}
       <div>
-        <h4 className="text-xs text-pl-text-dim uppercase font-medium mb-2">Last {h2h.matches.length} Meetings</h4>
+        <h4 className="text-xs text-pl-text-dim uppercase font-medium mb-2">
+          Last {h2h.matches.length} Meetings (Recent Seasons)
+        </h4>
         <div className="space-y-1">
-          {h2h.matches.map((match, idx) => (
-            <div key={idx} className="flex items-center justify-between text-xs bg-pl-border/20 rounded px-2 py-1">
-              <div className="flex-1">
-                <p className="text-pl-text">
-                  {match.home_team} vs {match.away_team}
-                </p>
-                <p className="text-pl-text-dim text-xs">
-                  {new Date(match.date).toLocaleDateString()}
-                </p>
+          {h2h.matches.map((match, idx) => {
+            const matchDate = new Date(match.date);
+            const year = matchDate.getFullYear();
+            const month = matchDate.getMonth();
+            // Determine season (Aug-July)
+            const season = month >= 7 ? `${year}/${year + 1}` : `${year - 1}/${year}`;
+            
+            return (
+              <div key={idx} className="flex items-center justify-between text-xs bg-pl-border/20 rounded px-2 py-1">
+                <div className="flex-1">
+                  <p className="text-pl-text">
+                    {match.home_team} vs {match.away_team}
+                  </p>
+                  <p className="text-pl-text-dim text-xs">
+                    {matchDate.toLocaleDateString()} • {season} season
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-white">{match.score}</span>
+                  <span className={`text-xs font-medium ${
+                    match.winner === 'Draw' 
+                      ? 'text-gray-400' 
+                      : match.winner === team1 
+                        ? 'text-pl-accent' 
+                        : 'text-pl-accent-orange'
+                  }`}>
+                    {match.winner === 'Draw' ? 'D' : match.winner === team1 ? 'W' : 'L'}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-white">{match.score}</span>
-                <span className={`text-xs font-medium ${
-                  match.winner === 'Draw' 
-                    ? 'text-gray-400' 
-                    : match.winner === team1 
-                      ? 'text-pl-accent' 
-                      : 'text-pl-accent-orange'
-                }`}>
-                  {match.winner === 'Draw' ? 'D' : match.winner === team1 ? 'W' : 'L'}
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

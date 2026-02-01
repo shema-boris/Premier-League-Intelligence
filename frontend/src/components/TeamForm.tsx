@@ -38,8 +38,16 @@ export const TeamForm: React.FC<TeamFormProps> = ({ teamName }) => {
 
   if (error || !form) {
     return (
-      <div className="text-center py-4">
-        <p className="text-xs text-red-400">{error || 'No form data available'}</p>
+      <div className="text-center py-8 px-4">
+        <div className="bg-pl-border/30 rounded-lg p-4 max-w-md mx-auto">
+          <svg className="w-8 h-8 text-pl-text-dim mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-sm text-pl-text-dim mb-2">Team form data unavailable</p>
+          <p className="text-xs text-pl-text-dim/70">
+            Backend server needs to be restarted with Football API key configured
+          </p>
+        </div>
       </div>
     );
   }

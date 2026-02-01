@@ -47,6 +47,13 @@ export const PredictedLineup: React.FC<PredictedLineupProps> = ({ teamName }) =>
 
   return (
     <div className="space-y-3">
+      {/* Info Note */}
+      <div className="bg-pl-border/20 rounded-lg p-3 mb-3">
+        <p className="text-xs text-pl-text-dim text-center">
+          📋 Based on recent matches. Actual lineups released 1 hour before kickoff.
+        </p>
+      </div>
+
       {/* Formation */}
       <div className="text-center">
         <span className="inline-block px-3 py-1 bg-pl-accent/20 text-pl-accent rounded text-sm font-medium">

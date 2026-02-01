@@ -16,8 +16,11 @@ from schemas.team_news import MatchTeamNews, PlayerAbsence, TeamNews
 # Premier League ID in API-Football
 PREMIER_LEAGUE_ID = 39
 # Current season (Premier League uses starting year, e.g., 2024 for 2024-2025)
-CURRENT_SEASON = 2024
-
+# Will automatically try current season first, then fall back to previous seasons
+CURRENT_SEASON = 2025
+# Seasons to search (in order of priority: most recent first)
+# Note: Season 2024 data shows matches from May 2025, so it has the most recent data
+SEARCH_SEASONS = [2024, 2023, 2022, 2021, 2020]
 
 @dataclass(frozen=True, slots=True)
 class FootballAPIClient:
@@ -271,71 +274,155 @@ class FootballAPIClient:
         return result
 
     def get_team_last_n_fixtures(self, team_id: int, n: int = 5) -> list[dict[str, Any]]:
-        """Get last N completed fixtures for a team.
+        """Get last N completed fixtures for a team across multiple seasons.
         
         Returns fixtures sorted by date (most recent first).
+        Searches across SEARCH_SEASONS until we find enough matches.
+        Note: Free plan doesn't support 'last' parameter, so we use date ranges.
         """
         from datetime import timedelta
-
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        past = (datetime.now(timezone.utc) - timedelta(days=90)).strftime("%Y-%m-%d")
-
-        data = self._get("fixtures", params={
-            "team": team_id,
-            "season": CURRENT_SEASON,
-            "from": past,
-            "to": today,
-            "status": "FT",
-        })
-
-        fixtures = data.get("response", [])
-        fixtures.sort(key=lambda f: f.get("fixture", {}).get("date", ""), reverse=True)
-        return fixtures[:n]
+        
+        all_fixtures = []
+        
+        # Search through seasons from most recent to oldest
+        for season in SEARCH_SEASONS:
+            if len(all_fixtures) >= n:
+                break
+            
+            try:
+                # Determine date range for this season
+                # Premier League season runs from August to May
+                season_start = f"{season}-08-01"
+                season_end = f"{season + 1}-05-31"
+                
+                # Get completed fixtures for this season
+                data = self._get("fixtures", params={
+                    "team": team_id,
+                    "season": season,
+                    "from": season_start,
+                    "to": season_end,
+                    "status": "FT",
+                })
+                
+                fixtures = data.get("response", [])
+                
+                # Add fixtures that aren't already in our list
+                for fixture in fixtures:
+                    fixture_id = fixture.get("fixture", {}).get("id")
+                    if not any(f.get("fixture", {}).get("id") == fixture_id for f in all_fixtures):
+                        all_fixtures.append(fixture)
+                
+            except Exception:
+                continue
+        
+        # Sort by date (most recent first) and limit to N
+        all_fixtures.sort(key=lambda f: f.get("fixture", {}).get("date", ""), reverse=True)
+        return all_fixtures[:n]
 
     def get_head_to_head(self, team1_id: int, team2_id: int, last_n: int = 5) -> list[dict[str, Any]]:
-        """Get last N head-to-head matches between two teams.
+        """Get last N head-to-head matches between two teams across multiple seasons.
         
         Returns fixtures sorted by date (most recent first).
+        Searches across SEARCH_SEASONS to find matches.
+        Note: Free plan doesn't support 'h2h' parameter, so we fetch team1's fixtures
+        and filter for matches against team2.
         """
-        data = self._get("fixtures/headtohead", params={
-            "h2h": f"{team1_id}-{team2_id}",
-            "last": last_n,
-        })
-
-        fixtures = data.get("response", [])
-        fixtures.sort(key=lambda f: f.get("fixture", {}).get("date", ""), reverse=True)
-        return fixtures
+        all_fixtures = []
+        
+        # Search by season (Free plan compatible)
+        for season in SEARCH_SEASONS:
+            if len(all_fixtures) >= last_n:
+                break
+                
+            try:
+                # Get all fixtures for team1 in this season
+                season_start = f"{season}-08-01"
+                season_end = f"{season + 1}-05-31"
+                
+                data = self._get("fixtures", params={
+                    "team": team1_id,
+                    "season": season,
+                    "league": PREMIER_LEAGUE_ID,
+                    "from": season_start,
+                    "to": season_end,
+                })
+                fixtures = data.get("response", [])
+                
+                # Filter for matches against team2
+                for fixture in fixtures:
+                    home_id = fixture.get("teams", {}).get("home", {}).get("id")
+                    away_id = fixture.get("teams", {}).get("away", {}).get("id")
+                    
+                    # Check if this is a match between team1 and team2
+                    if (home_id == team1_id and away_id == team2_id) or \
+                       (home_id == team2_id and away_id == team1_id):
+                        fixture_id = fixture.get("fixture", {}).get("id")
+                        if not any(f.get("fixture", {}).get("id") == fixture_id for f in all_fixtures):
+                            all_fixtures.append(fixture)
+                
+            except Exception:
+                continue
+        
+        # Sort by date (most recent first) and limit
+        all_fixtures.sort(key=lambda f: f.get("fixture", {}).get("date", ""), reverse=True)
+        return all_fixtures[:last_n]
 
     def get_team_id_by_name(self, team_name: str) -> int | None:
         """Get team ID by searching team name.
         
         Returns first matching team ID or None.
+        Note: Free plan doesn't support search parameter, so we fetch all PL teams and filter.
         """
-        data = self._get("teams", params={
-            "league": PREMIER_LEAGUE_ID,
-            "season": CURRENT_SEASON,
-            "search": team_name,
-        })
-
-        teams = data.get("response", [])
-        if teams:
-            return teams[0].get("team", {}).get("id")
+        # Get all Premier League teams (use most recent season with data)
+        for season in SEARCH_SEASONS:
+            try:
+                data = self._get("teams", params={
+                    "league": PREMIER_LEAGUE_ID,
+                    "season": season,
+                })
+                
+                teams = data.get("response", [])
+                if teams:
+                    # Search for team by name (case-insensitive, partial match)
+                    team_name_lower = team_name.lower()
+                    for team_data in teams:
+                        team = team_data.get("team", {})
+                        team_full_name = team.get("name", "").lower()
+                        if team_name_lower in team_full_name or team_full_name in team_name_lower:
+                            return team.get("id")
+                    break  # Found teams but no match, don't try other seasons
+            except Exception:
+                continue
+        
         return None
 
     def get_team_logo(self, team_name: str) -> str | None:
         """Get team logo URL by team name.
         
         Returns logo URL or None if not found.
+        Note: Free plan doesn't support search parameter, so we fetch all PL teams and filter.
         """
-        data = self._get("teams", params={
-            "league": PREMIER_LEAGUE_ID,
-            "season": CURRENT_SEASON,
-            "search": team_name,
-        })
-
-        teams = data.get("response", [])
-        if teams:
-            return teams[0].get("team", {}).get("logo")
+        # Get all Premier League teams (use most recent season with data)
+        for season in SEARCH_SEASONS:
+            try:
+                data = self._get("teams", params={
+                    "league": PREMIER_LEAGUE_ID,
+                    "season": season,
+                })
+                
+                teams = data.get("response", [])
+                if teams:
+                    # Search for team by name (case-insensitive, partial match)
+                    team_name_lower = team_name.lower()
+                    for team_data in teams:
+                        team = team_data.get("team", {})
+                        team_full_name = team.get("name", "").lower()
+                        if team_name_lower in team_full_name or team_full_name in team_name_lower:
+                            return team.get("logo")
+                    break  # Found teams but no match, don't try other seasons
+            except Exception:
+                continue
+        
         return None
 
     def get_predicted_lineup(self, team_id: int) -> dict[str, Any]:
