@@ -113,3 +113,8 @@ export interface HeadToHeadResponse {
   team2_wins: number;
   draws: number;
 }
+
+export interface TeamLogoResponse {
+  team_name: string;
+  logo_url: string | null;
+}

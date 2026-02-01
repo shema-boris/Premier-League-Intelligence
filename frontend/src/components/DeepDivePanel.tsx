@@ -3,6 +3,7 @@ import type { AnalysisResponse } from '../types';
 import { TeamForm } from './TeamForm';
 import { PredictedLineup } from './PredictedLineup';
 import { HeadToHead } from './HeadToHead';
+import { TeamBadge } from './TeamBadge';
 
 interface DeepDivePanelProps {
   match: AnalysisResponse | null;
@@ -78,24 +79,20 @@ export const DeepDivePanel: React.FC<DeepDivePanelProps> = ({ match, onClose }) 
           <div className="flex items-center justify-center gap-8 mb-4">
             {/* Home Team */}
             <div className="text-center">
-              <div className="w-16 h-16 bg-pl-border rounded-full flex items-center justify-center mb-2 mx-auto">
-                <span className="text-2xl font-bold text-white">
-                  {match.home_team.slice(0, 3).toUpperCase()}
-                </span>
+              <div className="mb-2 flex justify-center">
+                <TeamBadge teamName={match.home_team} size="large" />
               </div>
-              <p className="text-sm text-pl-text">{match.home_team}</p>
+              <p className="text-sm text-pl-text font-medium">{match.home_team}</p>
             </div>
 
-            <span className="text-2xl text-pl-text-dim font-light">V</span>
+            <span className="text-2xl text-pl-text-dim font-light">VS</span>
 
             {/* Away Team */}
             <div className="text-center">
-              <div className="w-16 h-16 bg-pl-border rounded-full flex items-center justify-center mb-2 mx-auto">
-                <span className="text-2xl font-bold text-white">
-                  {match.away_team.slice(0, 3).toUpperCase()}
-                </span>
+              <div className="mb-2 flex justify-center">
+                <TeamBadge teamName={match.away_team} size="large" />
               </div>
-              <p className="text-sm text-pl-text">{match.away_team}</p>
+              <p className="text-sm text-pl-text font-medium">{match.away_team}</p>
             </div>
           </div>
 

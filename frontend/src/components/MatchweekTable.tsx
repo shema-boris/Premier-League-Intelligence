@@ -1,6 +1,7 @@
 import React from 'react';
 import type { AnalysisResponse } from '../types';
 import { groupMatchesByDate, getRelativeDateLabel } from '../utils/dateUtils';
+import { TeamBadge } from './TeamBadge';
 
 interface MatchweekTableProps {
   matches: AnalysisResponse[];
@@ -119,15 +120,17 @@ export const MatchweekTable: React.FC<MatchweekTableProps> = ({
                       ${isSelected ? 'bg-pl-border/50' : 'hover:bg-pl-border/30'}
                     `}
                   >
-                    <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-pl-text-dim font-medium">
                           {formatTime(match.kickoff_utc)}
                         </span>
+                        <TeamBadge teamName={match.home_team} size="small" />
                         <span className="text-sm text-white font-medium">
                           {getTeamAbbrev(match.home_team)}
                         </span>
                         <span className="text-xs text-pl-text-dim">vs</span>
+                        <TeamBadge teamName={match.away_team} size="small" />
                         <span className="text-sm text-white font-medium">
                           {getTeamAbbrev(match.away_team)}
                         </span>

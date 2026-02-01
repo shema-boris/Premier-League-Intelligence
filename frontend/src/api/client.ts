@@ -6,6 +6,7 @@ import type {
   TeamFormResponse,
   LineupResponse,
   HeadToHeadResponse,
+  TeamLogoResponse,
 } from '../types';
 
 const API_BASE = 'http://127.0.0.1:8000';
@@ -57,4 +58,7 @@ export const api = {
     fetchJson<HeadToHeadResponse>(
       `${API_BASE}/head-to-head/${encodeURIComponent(team1)}/${encodeURIComponent(team2)}`
     ),
+
+  getTeamLogo: (teamName: string) =>
+    fetchJson<TeamLogoResponse>(`${API_BASE}/team-logo/${encodeURIComponent(teamName)}`),
 };

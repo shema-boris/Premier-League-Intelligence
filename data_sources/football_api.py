@@ -322,6 +322,22 @@ class FootballAPIClient:
             return teams[0].get("team", {}).get("id")
         return None
 
+    def get_team_logo(self, team_name: str) -> str | None:
+        """Get team logo URL by team name.
+        
+        Returns logo URL or None if not found.
+        """
+        data = self._get("teams", params={
+            "league": PREMIER_LEAGUE_ID,
+            "season": CURRENT_SEASON,
+            "search": team_name,
+        })
+
+        teams = data.get("response", [])
+        if teams:
+            return teams[0].get("team", {}).get("logo")
+        return None
+
     def get_predicted_lineup(self, team_id: int) -> dict[str, Any]:
         """Get predicted lineup based on recent matches.
         

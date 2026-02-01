@@ -131,6 +131,14 @@ class HeadToHeadResponse(BaseModel):
     draws: int
 
 
+class TeamLogoResponse(BaseModel):
+    """Team logo URL."""
+    model_config = ConfigDict(extra="forbid")
+    
+    team_name: str
+    logo_url: str | None
+
+
 class EnhancedAnalysisResponse(BaseModel):
     """Analysis with matchweek and date info."""
     model_config = ConfigDict(extra="forbid")
@@ -154,6 +162,7 @@ class EnhancedAnalysisResponse(BaseModel):
 async def lifespan(app: FastAPI):
     # Startup
     app.state.db = PredictionDB()
+    app.state.logo_cache = {}  # Initialize logo cache
     yield
     # Shutdown (nothing to clean up for SQLite)
 
@@ -538,6 +547,44 @@ async def get_predicted_lineup(team_name: str):
         )
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Failed to fetch lineup: {e}")
+
+
+@app.get("/team-logo/{team_name}", response_model=TeamLogoResponse)
+async def get_team_logo(team_name: str):
+    """Get team logo URL with aggressive caching (7 days)."""
+    try:
+        football_client = FootballAPIClient.from_env()
+        
+        # Check cache first (logos rarely change)
+        cache_key = f"logo_{team_name.lower().replace(' ', '_')}"
+        
+        # Simple in-memory cache for this session
+        if not hasattr(app.state, 'logo_cache'):
+            app.state.logo_cache = {}
+        
+        if cache_key in app.state.logo_cache:
+            return TeamLogoResponse(
+                team_name=team_name,
+                logo_url=app.state.logo_cache[cache_key]
+            )
+        
+        # Fetch from API
+        logo_url = football_client.get_team_logo(team_name)
+        
+        # Cache the result
+        if logo_url:
+            app.state.logo_cache[cache_key] = logo_url
+        
+        return TeamLogoResponse(
+            team_name=team_name,
+            logo_url=logo_url
+        )
+    except Exception as e:
+        # Return None logo on error - frontend will show fallback
+        return TeamLogoResponse(
+            team_name=team_name,
+            logo_url=None
+        )
 
 
 @app.get("/head-to-head/{team1}/{team2}", response_model=HeadToHeadResponse)
