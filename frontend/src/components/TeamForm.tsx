@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
 import type { TeamFormResponse } from '../types';
 
@@ -11,11 +11,7 @@ export const TeamForm: React.FC<TeamFormProps> = ({ teamName }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadForm();
-  }, [teamName]);
-
-  const loadForm = async () => {
+  const loadForm = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -26,7 +22,11 @@ export const TeamForm: React.FC<TeamFormProps> = ({ teamName }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [teamName]);
+
+  useEffect(() => {
+    loadForm();
+  }, [teamName, loadForm]);
 
   if (loading) {
     return (

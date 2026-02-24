@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
 import type { LineupResponse } from '../types';
 
@@ -11,11 +11,7 @@ export const PredictedLineup: React.FC<PredictedLineupProps> = ({ teamName }) =>
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadLineup();
-  }, [teamName]);
-
-  const loadLineup = async () => {
+  const loadLineup = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -26,7 +22,11 @@ export const PredictedLineup: React.FC<PredictedLineupProps> = ({ teamName }) =>
     } finally {
       setLoading(false);
     }
-  };
+  }, [teamName]);
+
+  useEffect(() => {
+    loadLineup();
+  }, [teamName, loadLineup]);
 
   if (loading) {
     return (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
 import type { HeadToHeadResponse } from '../types';
 
@@ -12,11 +12,7 @@ export const HeadToHead: React.FC<HeadToHeadProps> = ({ team1, team2 }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadH2H();
-  }, [team1, team2]);
-
-  const loadH2H = async () => {
+  const loadH2H = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -27,7 +23,11 @@ export const HeadToHead: React.FC<HeadToHeadProps> = ({ team1, team2 }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [team1, team2]);
+
+  useEffect(() => {
+    loadH2H();
+  }, [team1, team2, loadH2H]);
 
   if (loading) {
     return (
