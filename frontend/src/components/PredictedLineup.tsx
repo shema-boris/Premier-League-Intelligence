@@ -72,7 +72,7 @@ export const PredictedLineup: React.FC<PredictedLineupProps> = ({ teamName }) =>
                   {player.player?.number || idx + 1}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-white truncate">{player.player?.name || 'Unknown'}</p>
+                  <p className="text-xs text-pl-text-bright truncate">{player.player?.name || 'Unknown'}</p>
                   <p className="text-xs text-pl-text-dim">{player.player?.pos || 'N/A'}</p>
                 </div>
               </div>

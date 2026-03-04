@@ -16,7 +16,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   return (
     <header className="flex items-center justify-between px-6 py-3 bg-pl-card border-b border-pl-border">
       <div className="flex items-center gap-6">
-        <h1 className="text-xl font-bold text-white tracking-wide">
+        <h1 className="text-xl font-bold text-pl-text-bright tracking-wide">
           PL MARKET INTELLIGENCE
         </h1>
         
@@ -45,7 +45,7 @@ export const TopBar: React.FC<TopBarProps> = ({
       </div>
 
       <div className="flex items-center gap-4">
-        <button className="text-pl-text-dim hover:text-white transition-colors">
+        <button className="text-pl-text-dim hover:text-pl-text-bright transition-colors">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -53,7 +53,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         
         <button
           onClick={onToggleTheme}
-          className="flex items-center gap-2 text-sm text-pl-text-dim hover:text-white transition-colors"
+          className="flex items-center gap-2 text-sm text-pl-text-dim hover:text-pl-text-bright transition-colors"
         >
           {isDark ? (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -7,14 +7,14 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Dark theme colors matching mockup
-        'pl-dark': '#0d1117',
-        'pl-card': '#161b22',
-        'pl-border': '#30363d',
-        'pl-accent': '#22c55e',
-        'pl-accent-orange': '#f97316',
-        'pl-text': '#c9d1d9',
-        'pl-text-dim': '#8b949e',
+        'pl-dark': 'var(--color-pl-dark)',
+        'pl-card': 'var(--color-pl-card)',
+        'pl-border': 'var(--color-pl-border)',
+        'pl-accent': 'var(--color-pl-accent)',
+        'pl-accent-orange': 'var(--color-pl-accent-orange)',
+        'pl-text': 'var(--color-pl-text)',
+        'pl-text-dim': 'var(--color-pl-text-dim)',
+        'pl-text-bright': 'var(--color-pl-text-bright)',
       },
     },
   },

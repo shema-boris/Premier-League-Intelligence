@@ -43,10 +43,10 @@ export const DeepDivePanel: React.FC<DeepDivePanelProps> = ({ match, onClose }) 
       {/* Header */}
       <div className="border-b border-pl-border">
         <div className="flex items-center justify-between px-4 py-3">
-          <h2 className="text-lg font-semibold text-white">MATCH DEEP DIVE</h2>
+          <h2 className="text-lg font-semibold text-pl-text-bright">MATCH DEEP DIVE</h2>
           <button
             onClick={onClose}
-            className="text-pl-text-dim hover:text-white transition-colors"
+            className="text-pl-text-dim hover:text-pl-text-bright transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -62,8 +62,8 @@ export const DeepDivePanel: React.FC<DeepDivePanelProps> = ({ match, onClose }) 
               onClick={() => setActiveTab(tab.id)}
               className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
                 activeTab === tab.id
-                  ? 'border-pl-accent text-white'
-                  : 'border-transparent text-pl-text-dim hover:text-white'
+                  ? 'border-pl-accent text-pl-text-bright'
+                  : 'border-transparent text-pl-text-dim hover:text-pl-text-bright'
               }`}
             >
               <span className="mr-1">{tab.icon}</span>
@@ -118,7 +118,7 @@ export const DeepDivePanel: React.FC<DeepDivePanelProps> = ({ match, onClose }) 
           <>
             {/* Model Probabilities */}
             <div className="bg-pl-dark rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-white mb-4">Model Probabilities</h3>
+              <h3 className="text-sm font-semibold text-pl-text-bright mb-4">Model Probabilities</h3>
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-pl-text-dim">
                   <span>Home</span>
@@ -127,19 +127,19 @@ export const DeepDivePanel: React.FC<DeepDivePanelProps> = ({ match, onClose }) 
                 </div>
                 <div className="flex gap-1 h-8">
                   <div 
-                    className="bg-pl-accent rounded-l flex items-center justify-center text-xs font-medium text-white"
+                    className="bg-pl-accent rounded-l flex items-center justify-center text-xs font-medium text-pl-text-bright"
                     style={{ width: `${(homeDisc?.model_probability || 0.33) * 100}%` }}
                   >
                     {((homeDisc?.model_probability || 0.33) * 100).toFixed(0)}%
                   </div>
                   <div 
-                    className="bg-pl-text-dim flex items-center justify-center text-xs font-medium text-white"
+                    className="bg-pl-text-dim flex items-center justify-center text-xs font-medium text-pl-text-bright"
                     style={{ width: `${(drawDisc?.model_probability || 0.33) * 100}%` }}
                   >
                     {((drawDisc?.model_probability || 0.33) * 100).toFixed(0)}%
                   </div>
                   <div 
-                    className="bg-pl-accent-orange rounded-r flex items-center justify-center text-xs font-medium text-white"
+                    className="bg-pl-accent-orange rounded-r flex items-center justify-center text-xs font-medium text-pl-text-bright"
                     style={{ width: `${(awayDisc?.model_probability || 0.33) * 100}%` }}
                   >
                     {((awayDisc?.model_probability || 0.33) * 100).toFixed(0)}%
@@ -150,7 +150,7 @@ export const DeepDivePanel: React.FC<DeepDivePanelProps> = ({ match, onClose }) 
 
             {/* Analysis Narrative */}
             <div className="bg-pl-dark rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-white mb-3">Intelligence Report</h3>
+              <h3 className="text-sm font-semibold text-pl-text-bright mb-3">Intelligence Report</h3>
               <p className="text-sm text-pl-text leading-relaxed">{match.conclusion}</p>
             </div>
           </>
@@ -159,11 +159,11 @@ export const DeepDivePanel: React.FC<DeepDivePanelProps> = ({ match, onClose }) 
         {activeTab === 'form' && (
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-pl-dark rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-white mb-3">{match.home_team}</h3>
+              <h3 className="text-sm font-semibold text-pl-text-bright mb-3">{match.home_team}</h3>
               <TeamForm teamName={match.home_team} />
             </div>
             <div className="bg-pl-dark rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-white mb-3">{match.away_team}</h3>
+              <h3 className="text-sm font-semibold text-pl-text-bright mb-3">{match.away_team}</h3>
               <TeamForm teamName={match.away_team} />
             </div>
           </div>
@@ -172,11 +172,11 @@ export const DeepDivePanel: React.FC<DeepDivePanelProps> = ({ match, onClose }) 
         {activeTab === 'lineups' && (
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-pl-dark rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-white mb-3">{match.home_team}</h3>
+              <h3 className="text-sm font-semibold text-pl-text-bright mb-3">{match.home_team}</h3>
               <PredictedLineup teamName={match.home_team} />
             </div>
             <div className="bg-pl-dark rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-white mb-3">{match.away_team}</h3>
+              <h3 className="text-sm font-semibold text-pl-text-bright mb-3">{match.away_team}</h3>
               <PredictedLineup teamName={match.away_team} />
             </div>
           </div>
@@ -184,7 +184,7 @@ export const DeepDivePanel: React.FC<DeepDivePanelProps> = ({ match, onClose }) 
 
         {activeTab === 'h2h' && (
           <div className="bg-pl-dark rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-white mb-4">
+            <h3 className="text-sm font-semibold text-pl-text-bright mb-4">
               {match.home_team} vs {match.away_team}
             </h3>
             <HeadToHead team1={match.home_team} team2={match.away_team} />

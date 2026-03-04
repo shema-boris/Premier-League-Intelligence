@@ -78,7 +78,7 @@ export const TeamBadge: React.FC<TeamBadgeProps> = ({
         ) : (
           // Fallback badge with abbreviation
           <div className={`${sizeClass} bg-pl-border rounded-full flex items-center justify-center`}>
-            <span className={`${textSizeClass} font-bold text-white`}>
+            <span className={`${textSizeClass} font-bold text-pl-text-bright`}>
               {getTeamAbbrev(teamName)}
             </span>
           </div>

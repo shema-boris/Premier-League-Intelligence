@@ -4,9 +4,9 @@ from pydantic import BaseModel, ConfigDict, Field
 class RawOdds(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    home_win: float = Field(..., gt=1.0)
-    draw: float = Field(..., gt=1.0)
-    away_win: float = Field(..., gt=1.0)
+    home_win: float = Field(..., ge=1.0)
+    draw: float = Field(..., ge=1.0)
+    away_win: float = Field(..., ge=1.0)
 
 
 class ImpliedProbabilities(BaseModel):

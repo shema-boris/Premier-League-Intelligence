@@ -24,8 +24,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
               className={`
                 flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors
                 ${activeTab === tab.id 
-                  ? 'bg-pl-border text-white' 
-                  : 'text-pl-text-dim hover:text-white'
+                  ? 'bg-pl-border text-pl-text-bright' 
+                  : 'text-pl-text-dim hover:text-pl-text-bright'
                 }
               `}
             >
@@ -39,7 +39,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
         ))}
       </div>
 
-      <button className="flex items-center gap-2 px-4 py-2 bg-pl-border rounded text-sm text-pl-text hover:text-white transition-colors">
+      <button className="flex items-center gap-2 px-4 py-2 bg-pl-border rounded text-sm text-pl-text hover:text-pl-text-bright transition-colors">
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
         </svg>

@@ -70,7 +70,7 @@ export const TeamForm: React.FC<TeamFormProps> = ({ teamName }) => {
           {form.form_string.split('-').map((result, idx) => (
             <div
               key={idx}
-              className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-white ${getResultColor(result)}`}
+              className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-pl-text-bright ${getResultColor(result)}`}
             >
               {result}
             </div>
@@ -82,15 +82,15 @@ export const TeamForm: React.FC<TeamFormProps> = ({ teamName }) => {
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="bg-pl-border/30 rounded p-2">
           <p className="text-xs text-pl-text-dim">Goals</p>
-          <p className="text-sm font-bold text-white">{form.goals_scored}</p>
+          <p className="text-sm font-bold text-pl-text-bright">{form.goals_scored}</p>
         </div>
         <div className="bg-pl-border/30 rounded p-2">
           <p className="text-xs text-pl-text-dim">Conceded</p>
-          <p className="text-sm font-bold text-white">{form.goals_conceded}</p>
+          <p className="text-sm font-bold text-pl-text-bright">{form.goals_conceded}</p>
         </div>
         <div className="bg-pl-border/30 rounded p-2">
           <p className="text-xs text-pl-text-dim">Record</p>
-          <p className="text-sm font-bold text-white">
+          <p className="text-sm font-bold text-pl-text-bright">
             {form.wins}W-{form.draws}D-{form.losses}L
           </p>
         </div>
@@ -105,7 +105,7 @@ export const TeamForm: React.FC<TeamFormProps> = ({ teamName }) => {
             </span>
             <div className="flex items-center gap-2">
               <span className="text-pl-text">{match.score}</span>
-              <span className={`w-5 h-5 rounded flex items-center justify-center text-xs font-bold text-white ${getResultColor(match.result)}`}>
+              <span className={`w-5 h-5 rounded flex items-center justify-center text-xs font-bold text-pl-text-bright ${getResultColor(match.result)}`}>
                 {match.result}
               </span>
             </div>

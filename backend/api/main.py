@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
+import threading
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -156,6 +159,118 @@ class EnhancedAnalysisResponse(BaseModel):
     conclusion: str
 
 
+# --- Analysis Cache ---
+
+CACHE_TTL_SECONDS = 600  # 10 minutes
+_analysis_cache: dict[str, Any] = {
+    "data": None,
+    "timestamp": 0.0,
+    "refreshing": False,
+}
+_cache_lock = threading.Lock()
+
+
+def _compute_analysis(db: PredictionDB) -> list[dict[str, Any]]:
+    """Run the full analysis pipeline for all upcoming matches."""
+    try:
+        odds_client = OddsAPIClient.from_env()
+        matches = odds_client.get_all_upcoming_matches()
+    except Exception as e:
+        print(f"[Cache] Failed to fetch matches: {e}")
+        return []
+
+    if not matches:
+        return []
+
+    results = []
+    for m in matches:
+        kickoff_str = m.get("kickoff_utc", "")
+        if kickoff_str:
+            kickoff = datetime.fromisoformat(kickoff_str.replace("Z", "+00:00"))
+        else:
+            kickoff = datetime.now(timezone.utc)
+
+        match = Match(
+            league="Premier League",
+            home_team=m["home_team"],
+            away_team=m["away_team"],
+            kickoff_utc=kickoff,
+        )
+        raw_odds = m["odds"]
+        team_news = MatchTeamNews(home=TeamNews(absences=[]), away=TeamNews(absences=[]))
+
+        report = run_offline_pipeline(match=match, raw_odds=raw_odds, team_news=team_news, verbose=False)
+
+        db.save_prediction(
+            home_team=match.home_team,
+            away_team=match.away_team,
+            match_date=match.kickoff_utc.isoformat(),
+            market_favorite=report.market_favorite.label,
+            market_favorite_prob=report.market_favorite.probability,
+            model_favorite=report.model_favorite.label,
+            model_favorite_prob=report.model_favorite.probability,
+            home_prob=report.discrepancies[0].model_probability if report.discrepancies else 0,
+            draw_prob=report.discrepancies[1].model_probability if len(report.discrepancies) > 1 else 0,
+            away_prob=report.discrepancies[2].model_probability if len(report.discrepancies) > 2 else 0,
+            home_odds=raw_odds.home_win,
+            draw_odds=raw_odds.draw,
+            away_odds=raw_odds.away_win,
+        )
+
+        results.append({
+            "home_team": match.home_team,
+            "away_team": match.away_team,
+            "kickoff_utc": match.kickoff_utc.isoformat(),
+            "market_favorite": report.market_favorite.label,
+            "market_favorite_prob": report.market_favorite.probability,
+            "model_favorite": report.model_favorite.label,
+            "model_favorite_prob": report.model_favorite.probability,
+            "discrepancies": [
+                {
+                    "outcome": d.outcome,
+                    "market_probability": d.market_probability,
+                    "model_probability": d.model_probability,
+                    "delta": d.delta,
+                }
+                for d in report.discrepancies
+            ],
+            "conclusion": report.conclusion,
+        })
+
+    return results
+
+
+def _refresh_cache(db: PredictionDB) -> None:
+    """Refresh cache in background thread."""
+    with _cache_lock:
+        if _analysis_cache["refreshing"]:
+            return
+        _analysis_cache["refreshing"] = True
+
+    try:
+        print("[Cache] Refreshing analysis cache...")
+        results = _compute_analysis(db)
+        if results:
+            with _cache_lock:
+                _analysis_cache["data"] = results
+                _analysis_cache["timestamp"] = time.time()
+            print(f"[Cache] Cached {len(results)} match analyses")
+        else:
+            print("[Cache] No results to cache")
+    finally:
+        with _cache_lock:
+            _analysis_cache["refreshing"] = False
+
+
+def _background_refresh_loop(db: PredictionDB) -> None:
+    """Periodically refresh the cache."""
+    # Initial refresh on startup
+    _refresh_cache(db)
+    while True:
+        time.sleep(CACHE_TTL_SECONDS)
+        _refresh_cache(db)
+
+
 # --- App Setup ---
 
 @asynccontextmanager
@@ -163,6 +278,13 @@ async def lifespan(app: FastAPI):
     # Startup
     app.state.db = PredictionDB()
     app.state.logo_cache = {}  # Initialize logo cache
+    # Start background cache refresh thread
+    refresh_thread = threading.Thread(
+        target=_background_refresh_loop,
+        args=(app.state.db,),
+        daemon=True,
+    )
+    refresh_thread.start()
     yield
     # Shutdown (nothing to clean up for SQLite)
 
@@ -309,75 +431,23 @@ async def analyze_match(home_team: str, away_team: str):
 
 @app.post("/analyze-all", response_model=list[AnalysisResponse])
 async def analyze_all_matches():
-    """Analyze all upcoming matches."""
-    try:
-        odds_client = OddsAPIClient.from_env()
-        matches = odds_client.get_all_upcoming_matches()
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Failed to fetch matches: {e}")
+    """Return cached analysis results. Cache is refreshed in background every 10 minutes."""
+    with _cache_lock:
+        cached_data = _analysis_cache["data"]
 
-    if not matches:
-        return []
+    if cached_data is not None:
+        return [AnalysisResponse(**item) for item in cached_data]
 
+    # Cache not ready yet (server just started) — compute on demand
     db: PredictionDB = app.state.db
-    results = []
+    results = _compute_analysis(db)
+    if results:
+        with _cache_lock:
+            _analysis_cache["data"] = results
+            _analysis_cache["timestamp"] = time.time()
+        return [AnalysisResponse(**item) for item in results]
 
-    for m in matches:
-        kickoff_str = m.get("kickoff_utc", "")
-        if kickoff_str:
-            kickoff = datetime.fromisoformat(kickoff_str.replace("Z", "+00:00"))
-        else:
-            kickoff = datetime.now(timezone.utc)
-
-        match = Match(
-            league="Premier League",
-            home_team=m["home_team"],
-            away_team=m["away_team"],
-            kickoff_utc=kickoff,
-        )
-        raw_odds = m["odds"]
-        team_news = MatchTeamNews(home=TeamNews(absences=[]), away=TeamNews(absences=[]))
-
-        report = run_offline_pipeline(match=match, raw_odds=raw_odds, team_news=team_news, verbose=False)
-
-        # Save prediction
-        db.save_prediction(
-            home_team=match.home_team,
-            away_team=match.away_team,
-            match_date=match.kickoff_utc.isoformat(),
-            market_favorite=report.market_favorite.label,
-            market_favorite_prob=report.market_favorite.probability,
-            model_favorite=report.model_favorite.label,
-            model_favorite_prob=report.model_favorite.probability,
-            home_prob=report.discrepancies[0].model_probability if report.discrepancies else 0,
-            draw_prob=report.discrepancies[1].model_probability if len(report.discrepancies) > 1 else 0,
-            away_prob=report.discrepancies[2].model_probability if len(report.discrepancies) > 2 else 0,
-            home_odds=raw_odds.home_win,
-            draw_odds=raw_odds.draw,
-            away_odds=raw_odds.away_win,
-        )
-
-        results.append(AnalysisResponse(
-            home_team=match.home_team,
-            away_team=match.away_team,
-            kickoff_utc=match.kickoff_utc.isoformat(),
-            market_favorite=report.market_favorite.label,
-            market_favorite_prob=report.market_favorite.probability,
-            model_favorite=report.model_favorite.label,
-            model_favorite_prob=report.model_favorite.probability,
-            discrepancies=[
-                {
-                    "outcome": d.outcome,
-                    "market_probability": d.market_probability,
-                    "model_probability": d.model_probability,
-                    "delta": d.delta,
-                }
-                for d in report.discrepancies
-            ],
-            conclusion=report.conclusion,
-        ))
-
-    return results
+    return []
 
 
 @app.get("/predictions", response_model=list[PredictionResponse])

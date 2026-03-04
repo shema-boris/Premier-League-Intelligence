@@ -114,7 +114,7 @@ export const HeadToHead: React.FC<HeadToHeadProps> = ({ team1, team2 }) => {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-white">{match.score}</span>
+                  <span className="font-bold text-pl-text-bright">{match.score}</span>
                   <span className={`text-xs font-medium ${
                     match.winner === 'Draw' 
                       ? 'text-gray-400' 
