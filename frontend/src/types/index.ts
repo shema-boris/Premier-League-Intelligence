@@ -24,6 +24,52 @@ export interface AnalysisResponse {
   model_favorite_prob: number;
   discrepancies: Discrepancy[];
   conclusion: string;
+  learned_prediction?: LearnedPrediction | null;
+}
+
+export interface LearnedPrediction {
+  status: 'ready' | 'unavailable' | 'stale' | 'started';
+  message: string;
+  home_team: string;
+  away_team: string;
+  kickoff_utc: string;
+  generated_at: string;
+  probabilities: Record<'home' | 'draw' | 'away', number> | null;
+  market_probabilities: Record<'home' | 'draw' | 'away', number> | null;
+  model_version: string | null;
+  training_last_date: string | null;
+  history_last_date: string | null;
+  team_history_dates: Partial<Record<'home' | 'away', string>>;
+  features: Record<string, number>;
+  history_version: string | null;
+  snapshot_saved: boolean;
+}
+
+export interface ProbabilityMetrics {
+  matches: number;
+  accuracy: number;
+  log_loss: number;
+  brier_multiclass_sum: number;
+}
+
+export interface LearnedMetricsResponse {
+  total: number;
+  settled: number;
+  pending: number;
+  protocol: string;
+  versions: Array<{
+    model_version: string;
+    total: number;
+    settled: number;
+    pending: number;
+    invalid_probabilities: number;
+    model: ProbabilityMetrics | null;
+    market_comparison: {
+      paired_matches: number;
+      model: ProbabilityMetrics | null;
+      market: ProbabilityMetrics | null;
+    };
+  }>;
 }
 
 export interface PredictionResponse {

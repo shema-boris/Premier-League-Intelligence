@@ -24,6 +24,6 @@ improvement over that simple baseline on one held-out season. They do not establ
 superiority over bookmaker odds, profitability, calibration, or future performance.
 Validation accuracy was 60.0%, illustrating why held-out evaluation matters.
 
-The local model artifact is available to the prediction CLI. The dashboard still
-uses its previous analysis pipeline; serving this model and generating grounded
-LLM explanations are not implemented in this milestone.
+The local model artifact is available to the prediction CLI and the dashboard API.
+Live history is stored separately from this benchmark. Grounded LLM explanations
+are not implemented yet.

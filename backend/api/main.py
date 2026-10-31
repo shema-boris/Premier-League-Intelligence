@@ -30,6 +30,9 @@ from validation.database import PredictionDB, ValidationMetrics
 
 load_dotenv()
 
+from prediction.service import service as prediction_service
+from prediction.history import current_seasons, refresh as refresh_history
+from prediction.tracking import ResultTracker
 
 # --- Response Models ---
 
@@ -76,6 +79,7 @@ class AnalysisResponse(BaseModel):
     model_favorite_prob: float
     discrepancies: list[dict[str, Any]]
     conclusion: str
+    learned_prediction: dict[str, Any] | None = None
 
 
 class MetricsResponse(BaseModel):
@@ -168,6 +172,24 @@ _analysis_cache: dict[str, Any] = {
     "refreshing": False,
 }
 _cache_lock = threading.Lock()
+_last_history_refresh = 0.0
+
+
+def _with_learned_prediction(result):
+    market = {d["outcome"]: d["market_probability"] for d in result["discrepancies"]}
+    learned = prediction_service.predict(result["home_team"], result["away_team"],
+                                         datetime.fromisoformat(result["kickoff_utc"]), market)
+    result["learned_prediction"] = learned
+    if learned["status"] == "ready":
+        probabilities = learned["probabilities"]
+        favorite = max(probabilities, key=probabilities.get)
+        result["model_favorite"] = {"home": result["home_team"], "away": result["away_team"], "draw": "Draw"}[favorite]
+        result["model_favorite_prob"] = probabilities[favorite]
+        result["discrepancies"] = [{"outcome": outcome, "market_probability": market[outcome],
+                                    "model_probability": probability, "delta": probability - market[outcome]}
+                                   for outcome, probability in probabilities.items()]
+        result["conclusion"] = "The historical model estimates match outcomes from team strength, recent form, goals and rest. Market differences do not establish a betting advantage."
+    return result
 
 
 def _compute_analysis(db: PredictionDB) -> list[dict[str, Any]]:
@@ -217,7 +239,7 @@ def _compute_analysis(db: PredictionDB) -> list[dict[str, Any]]:
             away_odds=raw_odds.away_win,
         )
 
-        results.append({
+        results.append(_with_learned_prediction({
             "home_team": match.home_team,
             "away_team": match.away_team,
             "kickoff_utc": match.kickoff_utc.isoformat(),
@@ -235,7 +257,7 @@ def _compute_analysis(db: PredictionDB) -> list[dict[str, Any]]:
                 for d in report.discrepancies
             ],
             "conclusion": report.conclusion,
-        })
+        }))
 
     return results
 
@@ -264,11 +286,22 @@ def _refresh_cache(db: PredictionDB) -> None:
 
 def _background_refresh_loop(db: PredictionDB) -> None:
     """Periodically refresh the cache."""
-    # Initial refresh on startup
-    _refresh_cache(db)
+    global _last_history_refresh
     while True:
-        time.sleep(CACHE_TTL_SECONDS)
+        if os.getenv("AUTO_REFRESH_HISTORY", "1") == "1" and time.time() - _last_history_refresh > 43200:
+            _last_history_refresh = time.time()
+            try:
+                refresh_history(Path(__file__).resolve().parents[1] / "data/live-history", current_seasons())
+            except Exception as exc:
+                print(f"[History] Refresh failed; keeping previous data: {exc}")
         _refresh_cache(db)
+        try:
+            settlement = ResultTracker().settle()
+            if settlement["updated"] or settlement["conflicts"] or settlement["invalid"]:
+                print(f"[Results] {settlement}")
+        except Exception as exc:
+            print(f"[Results] Settlement failed; snapshots retained: {exc}")
+        time.sleep(CACHE_TTL_SECONDS)
 
 
 # --- App Setup ---
@@ -408,7 +441,7 @@ async def analyze_match(home_team: str, away_team: str):
         away_odds=raw_odds.away_win,
     )
 
-    return AnalysisResponse(
+    return AnalysisResponse(**await asyncio.to_thread(_with_learned_prediction, dict(
         home_team=match.home_team,
         away_team=match.away_team,
         kickoff_utc=match.kickoff_utc.isoformat(),
@@ -426,7 +459,7 @@ async def analyze_match(home_team: str, away_team: str):
             for d in report.discrepancies
         ],
         conclusion=report.conclusion,
-    )
+    )))
 
 
 @app.post("/analyze-all", response_model=list[AnalysisResponse])
@@ -440,7 +473,7 @@ async def analyze_all_matches():
 
     # Cache not ready yet (server just started) — compute on demand
     db: PredictionDB = app.state.db
-    results = _compute_analysis(db)
+    results = await asyncio.to_thread(_compute_analysis, db)
     if results:
         with _cache_lock:
             _analysis_cache["data"] = results
@@ -448,6 +481,24 @@ async def analyze_all_matches():
         return [AnalysisResponse(**item) for item in results]
 
     return []
+
+
+@app.get("/predict")
+async def predict_fixture(home_team: str, away_team: str):
+    """Predict a provider-listed fixture; clients cannot invent a kickoff timestamp."""
+    matches = await analyze_all_matches()
+    for match in matches:
+        if match.home_team.casefold() == home_team.casefold() and match.away_team.casefold() == away_team.casefold():
+            market = {d["outcome"]: d["market_probability"] for d in match.discrepancies}
+            return await asyncio.to_thread(prediction_service.predict, match.home_team, match.away_team,
+                                           datetime.fromisoformat(match.kickoff_utc), market)
+    raise HTTPException(status_code=404, detail="Upcoming fixture not found.")
+
+
+@app.get("/model-metrics")
+def learned_model_metrics():
+    """Prospective results only; separate from legacy /metrics and offline backtests."""
+    return ResultTracker().metrics()
 
 
 @app.get("/predictions", response_model=list[PredictionResponse])

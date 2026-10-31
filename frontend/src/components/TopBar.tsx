@@ -29,11 +29,11 @@ export const TopBar: React.FC<TopBarProps> = ({
           )}
           
           <span className="px-2 py-1 text-xs bg-pl-dark rounded text-pl-text-dim">
-            API: ACTIVE
+            {isLive ? 'API: ACTIVE' : 'API: UNCONFIRMED'}
           </span>
           
           <span className="px-2 py-1 text-xs bg-pl-dark rounded text-pl-text-dim">
-            SYNCED
+            {isLive ? 'SYNCED' : 'CACHED / SAMPLE DATA'}
           </span>
           
           {lastUpdated && (

@@ -69,3 +69,5 @@ htmlcov/
 # Downloaded historical datasets and locally trained model artifacts
 backend/data/historical/
 backend/data/models/
+backend/data/live-history/
+backend/data/learned_predictions.db*

@@ -7,6 +7,8 @@ import type {
   LineupResponse,
   HeadToHeadResponse,
   TeamLogoResponse,
+  LearnedPrediction,
+  LearnedMetricsResponse,
 } from '../types';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
@@ -20,6 +22,9 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  learnedMetrics: () => fetchJson<LearnedMetricsResponse>(`${API_BASE}/model-metrics`),
+  predict: (homeTeam: string, awayTeam: string) =>
+    fetchJson<LearnedPrediction>(`${API_BASE}/predict?${new URLSearchParams({ home_team: homeTeam, away_team: awayTeam })}`),
   health: () => fetchJson<HealthResponse>(`${API_BASE}/health`),
 
   analyzeAll: () =>

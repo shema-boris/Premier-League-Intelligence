@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { TopBar, MatchweekTable, DeepDivePanel } from './components';
 import { RefreshBanner } from './components/RefreshBanner';
+import { ModelPerformance } from './components/ModelPerformance';
 import { api } from './api/client';
 import { defaultMatches } from './data/defaultMatches';
 import type { AnalysisResponse } from './types';
@@ -36,6 +37,7 @@ function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [justUpdated, setJustUpdated] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasLiveResponse, setHasLiveResponse] = useState(false);
   const [sortBy, setSortBy] = useState<'kickoff' | 'discrepancy'>('kickoff');
   const [filterBiggest, setFilterBiggest] = useState(false);
 
@@ -44,15 +46,18 @@ function App() {
     setError(null);
     try {
       const data = await api.analyzeAll();
+      setHasLiveResponse(true);
       setMatches(data);
       setCachedMatches(data);
       setLastUpdated(new Date().toISOString());
       if (data.length > 0) {
-        setSelectedMatch(data[0]);
+        setSelectedMatch(current => data.find(match => match.home_team === current?.home_team &&
+          match.away_team === current?.away_team && match.kickoff_utc === current?.kickoff_utc) || data[0]);
       }
       setJustUpdated(true);
       setTimeout(() => setJustUpdated(false), 3500);
     } catch (err) {
+      setHasLiveResponse(false);
       if (matches.length === 0) {
         setError(err instanceof Error ? err.message : 'Failed to load matches');
       }
@@ -64,6 +69,8 @@ function App() {
 
   useEffect(() => {
     loadMatches();
+    const timer = window.setInterval(loadMatches, 60 * 1000);
+    return () => window.clearInterval(timer);
   }, [loadMatches]);
 
   return (
@@ -71,12 +78,13 @@ function App() {
       <div className="min-h-screen bg-pl-dark text-pl-text flex flex-col">
         <TopBar
           lastUpdated={lastUpdated}
-          isLive={!loading && matches.length > 0}
+          isLive={hasLiveResponse && !isRefreshing && matches.length > 0}
           isDark={isDark}
           onToggleTheme={() => setIsDark(!isDark)}
         />
 
         <RefreshBanner isRefreshing={isRefreshing} justUpdated={justUpdated} />
+        <ModelPerformance />
 
         <main className="flex-1 flex overflow-hidden">
           {loading && matches.length === 0 ? (

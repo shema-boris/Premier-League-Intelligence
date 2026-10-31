@@ -2,6 +2,7 @@ import React from 'react';
 import type { AnalysisResponse } from '../types';
 import { groupMatchesByDate, getRelativeDateLabel } from '../utils/dateUtils';
 import { TeamBadge } from './TeamBadge';
+import { predictionReady } from './PredictionComparison';
 
 interface MatchweekTableProps {
   matches: AnalysisResponse[];
@@ -14,6 +15,7 @@ interface MatchweekTableProps {
 }
 
 function getMaxDiscrepancy(match: AnalysisResponse): number {
+  if (!predictionReady(match.learned_prediction)) return 0;
   if (!match.discrepancies.length) return 0;
   return Math.max(...match.discrepancies.map((d) => Math.abs(d.delta)));
 }
@@ -142,7 +144,7 @@ export const MatchweekTable: React.FC<MatchweekTableProps> = ({
                     <div className="flex items-center gap-2 text-xs text-pl-text-dim">
                       <span>Market: {favAbbrev} ({(match.market_favorite_prob * 100).toFixed(0)}%)</span>
                       <span>•</span>
-                      <span>Model: {getTeamAbbrev(match.model_favorite)} ({(match.model_favorite_prob * 100).toFixed(0)}%)</span>
+                      <span>Model: {predictionReady(match.learned_prediction) ? `${getTeamAbbrev(match.model_favorite)} (${(match.model_favorite_prob * 100).toFixed(0)}%)` : 'Unavailable'}</span>
                     </div>
                   </div>
                 );

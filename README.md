@@ -1,226 +1,176 @@
-# Premier League Market Intelligence System
+# Premier League Intelligence
 
-## Historical prediction model (new)
+A full-stack football analytics project that combines match data, a trained
+probability model, and prospective result tracking. The React dashboard compares
+home/draw/away model probabilities with normalized bookmaker probabilities.
 
-A separate logistic regression training pipeline now learns from historical match
-results using pre-match Elo, form, goals and rest features. It includes chronological
-validation/testing and a command to predict fixture probabilities. See the
-[training guide](backend/prediction/README.md) and
-[first measured results](backend/prediction/BASELINE_RESULTS.md).
-This model is not yet connected to the dashboard; the existing API analysis still
-uses the deterministic market-based pipeline described below. Claims below about
-performance and AI capabilities are legacy documentation, not measured results
-for this new prediction model.
+[Hosted dashboard](https://pl-analysis.vercel.app/) ·
+[Architecture](docs/ARCHITECTURE.md) · [Model design](docs/MODEL.md) ·
+[Deployment runbook](docs/DEPLOYMENT.md) · [Training commands](backend/prediction/README.md)
 
-**AI-powered sports analytics platform that combines real-time betting odds, team news intelligence, and multi-agent reasoning to identify value opportunities in Premier League matches.**
+The hosted dashboard may lag the repository until its deployments complete.
+Generative match explanations are planned; the current predictions use classical
+machine learning, not an LLM or a Hugging Face model.
 
----
+![Dashboard](frontend/public/pl_analysis.PNG)
 
-## 🌟 Live Demo
+*The screenshot predates the learned prediction and tracking panels.*
 
-**Experience the platform live:** [https://pl-analysis.vercel.app/](https://pl-analysis.vercel.app/)
+## What is implemented
 
-![Premier League Market Intelligence Dashboard](frontend/public/pl_analysis.PNG)
+- React + TypeScript dashboard with match selection, recent form, lineup context,
+  head-to-head history, dark/light themes and browser caching.
+- FastAPI integration with The Odds API and API-Football. Upcoming fixtures and
+  market odds come from The Odds API; supplementary match context uses API-Football.
+- Historical results ingestion from [Football-Data](https://www.football-data.co.uk/englandm.php),
+  with separate frozen benchmark data and refreshable serving history.
+- Standardized multinomial logistic regression trained on 12 pre-match features.
+  It produces independent home-win, draw and away-win probabilities without odds inputs.
+- Model-versus-market comparison, explicit missing/stale-data states, model versions
+  and result-history dates. Browser data refreshes every minute; backend match
+  analysis refreshes roughly every 10 minutes and recent results every 12 hours.
+- Immutable first pre-kickoff snapshots in SQLite, including probabilities, inputs,
+  market baseline, model version and data hash.
+- Automatic settlement against completed results and prospective accuracy,
+  log loss and multiclass Brier scores, grouped by model version.
 
----
+The older deterministic market-adjustment pipeline and optional CrewAI orchestration
+remain in the repository. They are separate from the trained classifier. LLM agents
+do not run on the normal dashboard prediction path.
 
-## 🎯 What This Project Demonstrates
+## Measured historical results
 
-This is a **full-stack production application** showcasing advanced software engineering capabilities:
+The first experiment used 3,420 matches across 2016/17–2024/25:
 
-- **Multi-Agent AI Systems** using CrewAI for intelligent sports analysis
-- **Real-time Data Integration** with external APIs and intelligent caching
-- **Modern Web Architecture** with React + FastAPI + TypeScript
-- **Production Deployment** on Vercel + Render with CI/CD automation
-- **Performance Optimization** with stale-while-revalidate caching patterns
-- **Professional UI/UX** with dark/light themes and responsive design
+| Split | Seasons | Matches |
+|---|---|---:|
+| Training | 2016/17–2022/23 | 2,660 |
+| Validation | 2023/24 | 380 |
+| Held-out test | 2024/25 | 380 |
 
----
+| Held-out metric | Logistic regression | Training-frequency baseline |
+|---|---:|---:|
+| Accuracy | 51.84% | 40.79% |
+| Log loss ↓ | 0.9973 | 1.0816 |
+| Multiclass Brier sum ↓ | 0.5980 | 0.6561 |
 
-## 🎯 Tech Stack
+The baseline returns the training-set outcome frequencies for every match. These
+numbers are not a historical bookmaker comparison and do not establish profitability
+or future performance. [Experiment details](backend/prediction/BASELINE_RESULTS.md).
+Live tracking scores actual saved forecasts separately; it reports no score until
+predictions have settled.
 
-**Backend:**
-- Python 3.11+ | FastAPI | CrewAI | Pydantic
-- Multi-agent AI orchestration with LangChain
-- RESTful API with async request handling
+## Run locally
 
-**Frontend:**
-- React 18 | TypeScript | TailwindCSS
-- Real-time data visualization
-- Responsive design with custom component library
+Use Python 3.11 and a Node version compatible with the frontend toolchain
+(development has been verified with Node 22). From the repository root in PowerShell:
 
-**Data Sources & APIs:**
-- Football API (RapidAPI) - Historical fixtures, lineups, team statistics
-- The Odds API - Live betting market data
-- In-memory TTL caching for API optimization
-
-**DevOps:**
-- Git version control
-- Environment-based configuration
-- Modular monorepo architecture (backend/ + frontend/)
-
----
-
-## ⚡ Key Features
-
-1. **Real-Time Match Intelligence Dashboard**
-   - Live upcoming Premier League fixtures with official team badges
-   - Date-grouped match display with automatic timezone handling
-   - Interactive deep-dive analysis per match
-
-2. **Multi-Dimensional Match Analysis**
-   - **Team Form Tracking:** Last 5 matches with W/D/L statistics and goal differentials
-   - **Predicted Lineups:** Formation analysis based on recent team selections
-   - **Head-to-Head History:** Cross-season encounter analysis (last 3 meetings)
-
-3. **AI-Powered Market Analysis**
-   - Multi-agent system analyzing odds discrepancies
-   - Team news impact assessment using injury/suspension data
-   - Automated report generation with confidence scoring
-
-4. **Prediction Validation & Backtesting**
-   - Historical prediction tracking with SQLite persistence
-   - Performance metrics calculation (accuracy, ROI, Brier score)
-   - Continuous model improvement through result validation
-
----
-
-## 🧠 Core Problem & Solution
-
-### The Challenge
-**API Rate Limits on Free Tiers:** External sports APIs impose strict request limits (100-500 requests/month) that would cripple a production application. The Football API restricts crucial parameters like `last`, `h2h`, and `search`, making traditional data fetching impossible.
-
-### The Solution
-**Intelligent Multi-Layer Caching Architecture:**
-- **Backend Pre-computation:** Background thread processes all matches on startup and refreshes every 10 minutes
-- **Frontend Stale-While-Revalidate:** Shows cached data instantly while fetching fresh data in background
-- **Smart API Workarounds:** Multi-season search strategy bypasses API restrictions
-- **Local Data Filtering:** Client-side processing reduces API calls by 80%
-
-**Result:** Production-ready performance with zero user wait times, even on free-tier APIs.
-
----
-
-## 🔧 Technical Innovation
-
-### Multi-Agent AI Pipeline
-Built a 6-agent CrewAI system that processes match data through:
-1. **Input Validation** - Clean data ingestion
-2. **Market Analysis** - Convert odds to probabilities  
-3. **Team News Processing** - Impact assessment
-4. **Model Adjustment** - XG-based probability tuning
-5. **Discrepancy Detection** - Market vs model comparison
-6. **Report Generation** - Structured output synthesis
-
-### Performance Engineering
-- **<100ms response times** from cached data
-- **Background refresh** eliminates user wait times
-- **Concurrent processing** for multiple matches
-- **TTL caching** with automatic invalidation
-
-### Production Deployment
-- **Vercel** (frontend) + **Render** (backend) architecture
-- **Environment-based configuration** for dev/staging/prod
-- **Automated CI/CD** from GitHub pushes
-- **Zero-downtime deployments**
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Python 3.11+ and Node.js 18+
-- API Keys: [Football API](https://www.api-football.com/) and [The Odds API](https://the-odds-api.com/)
-
-### Installation
-
-1. **Backend Setup**
-   ```bash
-   cd backend
-   python -m venv venv && venv\Scripts\activate  # Windows
-   pip install -r requirements.txt
-   
-   # Create backend/.env with your API keys
-   echo "FOOTBALL_API_KEY=your_key" > .env
-   echo "ODDS_API_KEY=your_key" >> .env
-   
-   # Start server
-   python -m uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
-   ```
-
-2. **Frontend Setup**
-   ```bash
-   cd frontend
-   npm install
-   npm start
-   ```
-
-3. **Access Application**
-   - Frontend: `http://localhost:3000`
-   - Backend API: `http://127.0.0.1:8000`
-   - API Docs: `http://127.0.0.1:8000/docs`
-
----
-
-## 📁 Project Architecture
-
-```
-Premier-League-Intelligence/
-├── backend/                 # Python FastAPI + AI Agents
-│   ├── agents/             # CrewAI agent definitions
-│   ├── api/                # REST endpoints + caching
-│   ├── data_sources/       # External API clients
-│   ├── schemas/            # Pydantic models
-│   └── validation/         # Backtesting engine
-│
-└── frontend/               # React + TypeScript
-    ├── src/components/     # Reusable UI components
-    ├── src/api/           # Backend client
-    └── src/types/         # TypeScript interfaces
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m prediction.bootstrap
 ```
 
----
+Bootstrap downloads the fixed baseline CSVs, trains the classifier and refreshes
+the previous/current season results. It needs network access; historical downloads
+do not need an API key. Local datasets and trained artifacts are ignored by Git.
 
-## � Key Achievements
+Create `backend/.env` using [the example](backend/.env.example), then run:
 
-### Performance Metrics
-- **<100ms response times** for cached data (vs 20-60s originally)
-- **80% reduction** in API calls through intelligent caching
-- **Zero user wait times** with stale-while-revalidate pattern
-- **18 concurrent match analyses** processed in background
+```powershell
+python -m uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
+```
 
-### Technical Excellence
-- **Full-stack TypeScript** with end-to-end type safety
-- **Multi-agent AI system** with 6 specialized CrewAI agents
-- **Production-grade caching** with TTL and background refresh
-- **Responsive UI** with dark/light themes and accessibility
+Set `ODDS_API_KEY` for upcoming fixtures and odds, and `FOOTBALL_API_KEY` for
+supplementary context. A Gemini key is not required for learned predictions.
+In a second terminal:
 
-### Production Readiness
-- **Live deployment** on Vercel + Render with CI/CD
-- **Environment management** for dev/staging/prod
-- **Error handling** with graceful fallbacks
-- **Performance monitoring** and optimization
+```powershell
+cd frontend
+npm ci
+npm start
+```
 
----
+Open `http://localhost:3000`; API docs are at `http://127.0.0.1:8000/docs`.
+Without API connectivity, the dashboard may show cached/sample matches, explicitly
+labeled, with learned predictions withheld. Historical training and CLI prediction
+remain usable independently of the sports API keys.
 
-## 🎓 Engineering Takeaways
+## Useful commands
 
-- **Constraint-Driven Innovation:** API limitations led to superior caching architecture
-- **Multi-Agent Orchestration:** CrewAI enables complex analysis pipelines with structured outputs
-- **Type Safety First:** TypeScript + Pydantic eliminates runtime errors across the stack
-- **User Experience Matters:** Stale-while-revalidate ensures instant data access
-- **Production Thinking:** Built for scale from day one with proper deployment and monitoring
+From `backend`:
 
----
+```powershell
+python -m prediction.history
+python -m prediction.tracking settle
+python -m prediction.tracking metrics
+python -m prediction.pipeline predict --home Arsenal --away Chelsea --date 2026-11-01
+python -m pip install -r requirements-dev.txt
+python -m unittest discover -s prediction -p "test_*.py" -v
+```
 
-## 📞 Get In Touch
+The prediction command illustrates a hypothetical fixture, not a verified schedule.
+Use recent CSVs and exact CSV team names; production serving also applies freshness
+and coverage checks. From `frontend`:
 
-**Built with ❤️ by Boris Shema**
+```powershell
+node node_modules/react-scripts/bin/react-scripts.js test --watchAll=false --runInBand
+npm run build
+```
 
-- **Live Demo:** [https://pl-analysis.vercel.app/](https://pl-analysis.vercel.app/)
-- **GitHub:** [https://github.com/shema-boris/Premier-League-Intelligence](https://github.com/shema-boris/Premier-League-Intelligence)
-- **Resume:** Click "Resume" button in the app header
+Tests cover chronological leakage, model persistence, serving availability, snapshot
+immutability, result settlement, probability metrics, API behavior and UI fallbacks.
 
----
+## API highlights
 
-*This project demonstrates advanced full-stack development, AI integration, performance optimization, and production deployment skills. Perfect for showcasing to technical recruiters and hiring managers.*
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | Process health and legacy prediction count |
+| `POST /analyze-all` | Cached fixture analysis with learned prediction status |
+| `POST /analyze?home_team=…&away_team=…` | Analyze a provider-listed match |
+| `GET /predict?home_team=…&away_team=…` | Learned forecast for a provider-listed kickoff |
+| `GET /model-metrics` | Prospective learned-model results, grouped by version |
+| `GET /team-form/{team}` | Recent team form |
+| `GET /lineup/{team}` | Lineup context from prior available selections |
+| `GET /head-to-head/{team1}/{team2}` | Historical meetings |
+
+`/predictions`, `/metrics` and `/validate` belong to the **legacy** pipeline; they
+do not report the new model's prospective performance.
+
+## Repository layout
+
+```text
+backend/
+  api/             FastAPI endpoints and match cache
+  prediction/      Training, serving, historical refresh, snapshots and scoring
+  agents/, crew/   Legacy deterministic tools and optional CrewAI orchestration
+  data_sources/    Sports API clients
+  schemas/         Pydantic models for the original analysis pipeline
+  validation/      Legacy prediction database and validation
+frontend/src/
+  components/      Dashboard, match comparisons and prospective performance
+  api/             Typed backend client
+  types/           Frontend response interfaces
+docs/              Architecture, model design and deployment instructions
+```
+
+## Deployment and limitations
+
+Vercel hosts the frontend; Render configuration is in `render.yaml`. The backend
+build prepares a local model artifact. Durable tracking additionally requires
+`LEARNED_PREDICTIONS_DB` to point to persistent storage; this is not provisioned
+automatically. See [deployment and verification](docs/DEPLOYMENT.md).
+
+The baseline excludes injuries, confirmed lineups, player quality and xG. Promoted
+teams or long breaks can lack sufficient recent Premier League history; predictions
+are withheld rather than invented. Historical API context may fall back to older
+seasons and should not be treated as verified current news. The simple probability
+model has not been shown to outperform bookmaker odds.
+
+Next work: verify production persistence and prospective performance, add calibration
+checks and competing models, then grounded generative explanations. This is an
+analytics project; its outputs are probability estimates.
+
+Built by Boris Shema · [GitHub](https://github.com/shema-boris/Premier-League-Intelligence)

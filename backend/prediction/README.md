@@ -1,8 +1,9 @@
 # Historical prediction baseline
 
 This module trains an independent three-outcome logistic regression model. It does
-not use bookmaker odds as features and does not change the dashboard's existing
-analysis path. Generative explanations and API/UI integration are later stages.
+not use bookmaker odds as features. The API and dashboard now use this model when
+its artifact and sufficiently recent history are available. Generative explanations
+are a later stage.
 
 ## Reproduce
 
@@ -68,11 +69,68 @@ This command uses the frozen classifier; it does not retrain it.
 
 Load only trusted local joblib artifacts: joblib uses Python pickle serialization.
 
+## Serve predictions in the dashboard
+
+```powershell
+python -m prediction.bootstrap
+python -m uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Bootstrap downloads the fixed nine-season baseline, trains the same evaluated model,
+and fetches the previous/current season into `backend/data/live-history`. It does
+not retrain on the live data or change the published test split. It requires network
+access. The Render build command runs bootstrap too; no model binaries are committed.
+
+The background analysis worker refreshes current/previous season CSVs at most once
+per 12 hours, retaining prior files on failure. Set `AUTO_REFRESH_HISTORY=0` for
+offline development; manually refresh with `python -m prediction.history`.
+The historical provider's date-based results are conservatively used only from
+before the current UTC day. Injuries/lineups remain outside the model.
+
+`GET /predict?home_team=Arsenal&away_team=Chelsea` looks up the fixture's kickoff
+from provider-backed match data; arbitrary client kickoff times are not accepted.
+An odds API key is needed to obtain the upcoming fixtures. The response contains
+status (`ready`, `stale`, `unavailable`, or `started`), probabilities, normalized
+market probabilities, artifact hash/version, training end, team-history dates,
+feature inputs, source-history hash and whether the snapshot was recorded.
+`POST /analyze-all` and `POST /analyze` include this under `learned_prediction` and
+use learned probabilities for the favorite/discrepancies when ready. When not ready,
+legacy numeric fields retain the market-based baseline for compatibility; clients
+must inspect `learned_prediction.status` before presenting a learned prediction.
+
+Teams use an explicit provider-name alias map, not fuzzy matching. Unknown teams,
+fewer than five prior matches, missing artifacts and either team's latest result
+being over 35 days old withhold predictions. This deliberately withholds predictions
+during long breaks or for promoted teams without recent Premier League history.
+The UI also hides cached predictions after kickoff or after 12 hours.
+
+Ready predictions are stored in a separate `learned_predictions` table in
+`backend/data/learned_predictions.db`. The first snapshot for a fixture/model
+version is immutable; subsequent dashboard refreshes never rewrite it. The payload
+includes model and market probabilities, all inputs, dates and source/model hashes.
+New snapshots are refused after kickoff; storage failure is surfaced to the UI.
+The legacy `predictions.db` and its metrics still describe the old pipeline, not
+these learned snapshots. The background worker settles learned snapshots into a
+separate `prediction_results` table using earlier-day completed CSV results.
+Use `python -m prediction.tracking settle` to trigger settlement locally, and
+`python -m prediction.tracking metrics` to inspect the same data served by
+`GET /model-metrics`. Metrics are grouped by version, and model/market comparisons
+use exactly the same paired fixtures. Source corrections are flagged for review.
+
+For deployment, configure `LEARNED_PREDICTIONS_DB` to a path on persistent storage;
+an ephemeral filesystem loses snapshots on redeploy. `PREDICTION_MODEL_PATH` can
+override the default trusted local artifact. This repository does not provision
+a persistent hosting disk. Do not claim durable prospective tracking until one is
+configured.
+
+Tests: `python -m unittest discover -s prediction -p "test_*.py" -v`.
+API tests also require `httpx` (`python -m pip install httpx` if absent).
+
 ## Limits and next steps
 
 This first model excludes injuries, lineups, player quality, xG and odds. Teams new
 to the dataset start with defaults. Name changes across data providers require an
-explicit mapping before API integration. Next steps are a dated odds benchmark,
-calibration checks, stronger competing models, then an API endpoint and grounded
-LLM explanations. Do not repeatedly tune against this held-out test season; reserve
+explicit mapping (see `service.py`). Next steps are verifying production persistence,
+a historical dated odds benchmark, calibration checks, stronger competing models,
+and grounded LLM explanations. Do not repeatedly tune against this held-out test season; reserve
 a new future period when iterating extensively.

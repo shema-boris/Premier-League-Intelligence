@@ -4,8 +4,9 @@ services:
     runtime: python
     region: ohio
     rootDir: backend
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python -m prediction.bootstrap
     startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.0"

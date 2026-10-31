@@ -4,6 +4,7 @@ import { TeamForm } from './TeamForm';
 import { PredictedLineup } from './PredictedLineup';
 import { HeadToHead } from './HeadToHead';
 import { TeamBadge } from './TeamBadge';
+import { PredictionComparison, predictionReady } from './PredictionComparison';
 
 interface DeepDivePanelProps {
   match: AnalysisResponse | null;
@@ -26,10 +27,6 @@ export const DeepDivePanel: React.FC<DeepDivePanelProps> = ({ match, onClose }) 
       </div>
     );
   }
-
-  const homeDisc = match.discrepancies.find(d => d.outcome === 'home');
-  const drawDisc = match.discrepancies.find(d => d.outcome === 'draw');
-  const awayDisc = match.discrepancies.find(d => d.outcome === 'away');
 
   const tabs = [
     { id: 'overview' as const, label: 'Overview', icon: '📊' },
@@ -106,7 +103,7 @@ export const DeepDivePanel: React.FC<DeepDivePanelProps> = ({ match, onClose }) 
                 MARKET: {match.market_favorite} {(match.market_favorite_prob * 100).toFixed(0)}%
               </p>
               <p className="text-pl-text">
-                MODEL: {match.model_favorite} {(match.model_favorite_prob * 100).toFixed(0)}%
+                MODEL: {predictionReady(match.learned_prediction) ? `${match.model_favorite} ${(match.model_favorite_prob * 100).toFixed(0)}%` : 'Unavailable'}
               </p>
             </div>
           </div>
@@ -116,42 +113,12 @@ export const DeepDivePanel: React.FC<DeepDivePanelProps> = ({ match, onClose }) 
         {/* Tab Content */}
         {activeTab === 'overview' && (
           <>
-            {/* Model Probabilities */}
-            <div className="bg-pl-dark rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-pl-text-bright mb-4">Model Probabilities</h3>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-pl-text-dim">
-                  <span>Home</span>
-                  <span>Draw</span>
-                  <span>Away</span>
-                </div>
-                <div className="flex gap-1 h-8">
-                  <div 
-                    className="bg-pl-accent rounded-l flex items-center justify-center text-xs font-medium text-pl-text-bright"
-                    style={{ width: `${(homeDisc?.model_probability || 0.33) * 100}%` }}
-                  >
-                    {((homeDisc?.model_probability || 0.33) * 100).toFixed(0)}%
-                  </div>
-                  <div 
-                    className="bg-pl-text-dim flex items-center justify-center text-xs font-medium text-pl-text-bright"
-                    style={{ width: `${(drawDisc?.model_probability || 0.33) * 100}%` }}
-                  >
-                    {((drawDisc?.model_probability || 0.33) * 100).toFixed(0)}%
-                  </div>
-                  <div 
-                    className="bg-pl-accent-orange rounded-r flex items-center justify-center text-xs font-medium text-pl-text-bright"
-                    style={{ width: `${(awayDisc?.model_probability || 0.33) * 100}%` }}
-                  >
-                    {((awayDisc?.model_probability || 0.33) * 100).toFixed(0)}%
-                  </div>
-                </div>
-              </div>
-            </div>
+            <PredictionComparison prediction={match.learned_prediction} />
 
             {/* Analysis Narrative */}
             <div className="bg-pl-dark rounded-lg p-4">
               <h3 className="text-sm font-semibold text-pl-text-bright mb-3">Intelligence Report</h3>
-              <p className="text-sm text-pl-text leading-relaxed">{match.conclusion}</p>
+              <p className="text-sm text-pl-text leading-relaxed">{predictionReady(match.learned_prediction) ? match.conclusion : 'A current model analysis is unavailable. See prediction status above.'}</p>
             </div>
           </>
         )}
