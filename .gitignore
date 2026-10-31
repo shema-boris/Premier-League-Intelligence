@@ -65,3 +65,7 @@ yarn-error.log*
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Downloaded historical datasets and locally trained model artifacts
+backend/data/historical/
+backend/data/models/

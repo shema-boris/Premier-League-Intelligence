@@ -1,5 +1,17 @@
 # Premier League Market Intelligence System
 
+## Historical prediction model (new)
+
+A separate logistic regression training pipeline now learns from historical match
+results using pre-match Elo, form, goals and rest features. It includes chronological
+validation/testing and a command to predict fixture probabilities. See the
+[training guide](backend/prediction/README.md) and
+[first measured results](backend/prediction/BASELINE_RESULTS.md).
+This model is not yet connected to the dashboard; the existing API analysis still
+uses the deterministic market-based pipeline described below. Claims below about
+performance and AI capabilities are legacy documentation, not measured results
+for this new prediction model.
+
 **AI-powered sports analytics platform that combines real-time betting odds, team news intelligence, and multi-agent reasoning to identify value opportunities in Premier League matches.**
 
 ---
